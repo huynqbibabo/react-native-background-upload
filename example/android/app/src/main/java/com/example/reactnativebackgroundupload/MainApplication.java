@@ -27,7 +27,7 @@ public class MainApplication extends Application implements ReactApplication {
           List<ReactPackage> packages = new PackageList(this).getPackages();
           // Packages that cannot be autolinked yet can be added manually here, for BackgroundUploadExample:
           // packages.add(new MyReactNativePackage());
-          packages.add(new BackgroundUploadPackage());
+          packages.add(new BackgroundUploadPackage(R.mipmap.ic_launcher));
           return packages;
         }
 

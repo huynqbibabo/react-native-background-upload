@@ -1,18 +1,56 @@
-import * as React from 'react';
-
-import { StyleSheet, View, Text } from 'react-native';
+import React from 'react';
+import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import BackgroundUpload from 'react-native-background-upload';
+// import { ImageLibraryOptions, launchImageLibrary } from 'react-native-image-picker';
 
 export default function App() {
-  const [result, setResult] = React.useState<number | undefined>();
+  const onPress = () => {
+    // const options: ImageLibraryOptions = {
+    //   videoQuality: 'high',
+    //   mediaType: 'video',
+    // };
+    //
+    // launchImageLibrary(options, (response) => {
+    //   console.log('Response = ', response);
+    //   if (response.didCancel) {
+    //     console.log('User cancelled photo picker');
+    //   } else if (response.errorCode) {
+    //     console.log('ImagePicker Error: ', response.errorCode);
+    //   } else if (response.uri) {
+    //     BackgroundUpload.startBackgroundUpload(
+    //       'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/partUpload',
+    //       // response.uri,
+    //       '/storage/emulated/0/DCIM/Camera/20201011_140637.mp4',
+    //       '0i6di4kupkv.mp4',
+    //       hashMap
+    //     );
+    //   }
+    // });
 
-  React.useEffect(() => {
-    BackgroundUpload.multiply(3, 7).then(setResult);
-  }, []);
+    BackgroundUpload.startBackgroundUpload(
+      'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/partUpload',
+      // response.uri,
+      '/storage/emulated/0/DCIM/Camera/20201011_140637.mp4',
+      '0ydfmni7jl4.mp4',
+      {
+        1: 'i7OAx54fed7sgEtNhZgE',
+        2: 'oTugLt3y965KjiimV2wU',
+        3: 'mJx59d8IgCTZWvi6GOLz',
+        4: 'SwXqoEuXzJgPfTopBSvt',
+        5: 'GPBdISBgKAK7KWJYlLwR',
+        6: 'UFDublcWa0UzoUpU4kJX',
+        7: 'KJ7mwI14NTJdBEy7cx7e',
+        8: 'i1VNOLx1QJacGDp3h8nO',
+        9: 'eFdkYo2lkbpazN1uqhFR',
+      }
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <Text>Result: {result}</Text>
+      <TouchableOpacity style={styles.box} onPress={onPress}>
+        <Text>Click</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -23,9 +61,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  image: {
+    width: 200,
+    height: 200,
+    marginVertical: 30,
+  },
   box: {
-    width: 60,
-    height: 60,
-    marginVertical: 20,
+    padding: 16,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderRadius: 8,
+    borderColor: 'grey',
   },
 });

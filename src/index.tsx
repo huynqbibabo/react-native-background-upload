@@ -1,7 +1,14 @@
 import { NativeModules } from 'react-native';
 
+type HashMap = { [key: string]: string };
+
 type BackgroundUploadType = {
-  multiply(a: number, b: number): Promise<number>;
+  startBackgroundUpload(
+    url: string,
+    filePath: string,
+    fileName: string,
+    hash: HashMap
+  ): void;
 };
 
 const { BackgroundUpload } = NativeModules;
