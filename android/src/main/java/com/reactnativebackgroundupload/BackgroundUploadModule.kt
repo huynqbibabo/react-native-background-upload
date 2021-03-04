@@ -1,5 +1,6 @@
 package com.reactnativebackgroundupload
 
+import android.net.Uri
 import android.util.Log
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -25,10 +26,11 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext, 
     @ReactMethod
     fun startBackgroundUpload(requestUrl: String, filePath: String, fileName: String, hash: ReadableMap) {
 
-//      val videoBytes = FileInputStream(File(filePath)).use { input -> input.readBytes() }
-      val file = File(filePath);
+      val realPath = RealPathUtil.getRealPath(reactContext, Uri.parse(filePath))
+//      val videoBytes = FileInputStream(File(realPath)).use { input -> input.readBytes() }
+      val file = File(realPath);
 
-      val chunks: List<File> = splitFile(file, 5);
+      val chunks: List<File> = splitFile(file, 3);
 
       val apiService = RetrofitClient().getApiService();
       val fileNameBody = RequestBody.create(MultipartBody.FORM, fileName);
@@ -68,14 +70,14 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext, 
     val name = f.name
     var tmp = 0
     while (bis.read(buffer).also { tmp = it } > 0) {
-      val newFile = File(f.parent,  name + "." +  String.format("%03d", partCounter++)) // naming files as <inputFileName>.001, <inputFileName>.002, ...
+      val newFile = File(reactContext.externalCacheDir,  name + "." +  String.format("%03d", partCounter++)) // naming files as <inputFileName>.001, <inputFileName>.002, ...
       val out = FileOutputStream(newFile)
       out.write(buffer, 0, tmp) //tmp is chunk size. Need it for the last chunk, which could be less then 1 mb.
-      out.close()
+//      out.close()
       result.add(newFile)
     }
-    bis.close()
-    fis.close()
+//    bis.close()
+//    fis.close()
     return result
   }
 }
