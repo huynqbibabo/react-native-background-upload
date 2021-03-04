@@ -67,8 +67,10 @@ android/gradle/wrapper/gradle-wrapper.jar
 
 android/gradle/wrapper/gradle-wrapper.properties
 
-example/android/gradle/wrapper/gradle-wrapper.properties
-
 example/ios/Podfile.lock
 
 example/yarn.lock
+
+example/package-lock.json
+
+package-lock.json
