@@ -10,7 +10,7 @@ class ModelUploadInput {
   val KEY_HASH = "hash"
   val KEY_PRT = "prt"
 
-  fun createInputDataForUri(url: String, fileName: String, filePath: String, hash: String, prt: String): Data {
+  fun createInputDataForUpload(url: String, fileName: String, filePath: String, hash: String, prt: String): Data {
     val builder = Data.Builder()
     builder.putString(KEY_REQUEST_URL, url)
     builder.putString(KEY_FILE_NAME, fileName)

@@ -9,6 +9,7 @@ type BackgroundUploadType = {
     fileName: string,
     hash: HashMap
   ): void;
+  startEncodingVideo(filePath: string): void
 };
 
 const { BackgroundUpload } = NativeModules;
