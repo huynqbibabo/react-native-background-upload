@@ -3,12 +3,13 @@ package com.reactnativebackgroundupload.model
 import androidx.work.Data
 
 class ModelUploadInput {
-
-  val KEY_REQUEST_URL = "request_url"
-  val KEY_FILE_NAME = "file_name"
-  val KEY_FILE_PATH = "file_path"
-  val KEY_HASH = "hash"
-  val KEY_PRT = "prt"
+  companion object {
+    val KEY_REQUEST_URL = "request_url"
+    val KEY_FILE_NAME = "file_name"
+    val KEY_FILE_PATH = "file_path"
+    val KEY_HASH = "hash"
+    val KEY_PRT = "prt"
+  }
 
   fun createInputDataForUpload(url: String, fileName: String, filePath: String, hash: String, prt: String): Data {
     val builder = Data.Builder()

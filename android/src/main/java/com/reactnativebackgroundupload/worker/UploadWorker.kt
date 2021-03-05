@@ -39,11 +39,11 @@ class UploadWorker(
         }
       }
 
-      val requestUrl = inputData.getString(ModelUploadInput().KEY_REQUEST_URL)!!
-      val fileName = inputData.getString(ModelUploadInput().KEY_FILE_NAME)!!
-      val filePath = inputData.getString(ModelUploadInput().KEY_FILE_PATH)!!
-      val hash = inputData.getString(ModelUploadInput().KEY_HASH)!!
-      val prt = inputData.getString(ModelUploadInput().KEY_PRT)!!
+      val requestUrl = inputData.getString(ModelUploadInput.KEY_REQUEST_URL)!!
+      val fileName = inputData.getString(ModelUploadInput.KEY_FILE_NAME)!!
+      val filePath = inputData.getString(ModelUploadInput.KEY_FILE_PATH)!!
+      val hash = inputData.getString(ModelUploadInput.KEY_HASH)!!
+      val prt = inputData.getString(ModelUploadInput.KEY_PRT)!!
 
       uploadVideo(requestUrl, fileName, filePath, hash, prt, callback)
       callback
