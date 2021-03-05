@@ -2,9 +2,12 @@ package com.reactnativebackgroundupload
 
 import android.annotation.SuppressLint
 import android.net.Uri
+import android.util.Log
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkContinuation
 import androidx.work.WorkManager
+import com.arthenica.mobileffmpeg.Config
+import com.arthenica.mobileffmpeg.FFmpeg
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
@@ -23,26 +26,27 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext, 
     val realPath = RealPathUtil.getRealPath(reactContext, Uri.parse(filePath))
     val outputPath = "${reactContext.externalCacheDir}${System.currentTimeMillis()}.mp4"
 
-//    val rc = FFmpeg.execute("-i $realPath -vcodec h264 -b:v 1000k -acodec aac $outputPath")
-//
-//    Config.enableStatisticsCallback {
-//      newStatistics -> Log.d(Config.TAG, String.format("frame: %d, time: %d", newStatistics.videoFrameNumber, newStatistics.time))
-//    }
-//
-//    when (rc) {
-//      RETURN_CODE_SUCCESS -> Log.i(Config.TAG, "Command execution completed successfully.")
-//      RETURN_CODE_CANCEL -> Log.i(Config.TAG, "Command execution cancelled by user.")
-//      else -> {
-//        Log.i(Config.TAG, String.format("Command execution failed with rc=%d and the output below.", rc))
-//        Config.printLastCommandOutput(Log.INFO)
-//      }
-//    }
+    // take too long
+    val rc = FFmpeg.execute("-i $realPath -vcodec h264 -b:v 1000k -acodec aac $outputPath")
+
+    Config.enableStatisticsCallback {
+      newStatistics -> Log.d(Config.TAG, String.format("frame: %d, time: %d", newStatistics.videoFrameNumber, newStatistics.time))
+    }
+
+    when (rc) {
+      Config.RETURN_CODE_SUCCESS -> Log.i(Config.TAG, "Command execution completed successfully.")
+      Config.RETURN_CODE_CANCEL -> Log.i(Config.TAG, "Command execution cancelled by user.")
+      else -> {
+        Log.i(Config.TAG, String.format("Command execution failed with rc=%d and the output below.", rc))
+        Config.printLastCommandOutput(Log.INFO)
+      }
+    }
   }
 
   @SuppressLint("EnqueueWork")
   @ReactMethod
   fun startBackgroundUpload(requestUrl: String, filePath: String, fileName: String, hash: ReadableMap) {
-//    val videoBytes = FileInputStream(File(realPath)).use { input -> input.readBytes() }
+
     val realPath = RealPathUtil.getRealPath(reactContext, Uri.parse(filePath))
     val file = File(realPath)
 
@@ -62,6 +66,7 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext, 
         ?: workManager.beginWith(uploadRequest)
     }
     workContinuation?.enqueue()
+
   }
 
   @Throws(IOException::class)
