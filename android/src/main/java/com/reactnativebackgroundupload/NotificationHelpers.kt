@@ -42,6 +42,30 @@ class NotificationHelpers(private val context: Context) {
     }
   }
 
+  fun getCompleteNotificationBuilder(): NotificationCompat.Builder {
+    return NotificationCompat.Builder(context, CHANNEL_ID).apply {
+      setContentTitle("Tải lên hoàn tất")
+      setContentText("Hoàn thành")
+      setSmallIcon(android.R.drawable.stat_notify_sync)
+      setOngoing(false)
+      setDefaults(NotificationCompat.DEFAULT_ALL)
+      setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+      priority = NotificationCompat.PRIORITY_DEFAULT
+    }
+  }
+
+  fun getFailureNotificationBuilder(): NotificationCompat.Builder {
+    return NotificationCompat.Builder(context, CHANNEL_ID).apply {
+      setContentTitle("Tải lên thất bại")
+      setContentText("Vui lòng thử lại sau")
+      setSmallIcon(android.R.drawable.stat_notify_sync)
+      setOngoing(false)
+      setDefaults(NotificationCompat.DEFAULT_ALL)
+      setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+      priority = NotificationCompat.PRIORITY_DEFAULT
+    }
+  }
+
   fun startNotify(notification: Notification) {
     with(NotificationManagerCompat.from(context)) {
       notify(1, notification)

@@ -7,7 +7,8 @@ type BackgroundUploadType = {
     url: string,
     filePath: string,
     fileName: string,
-    hash: HashMap
+    hash: HashMap,
+    chunkSize: number
   ): void;
   startEncodingVideo(filePath: string): void;
 };

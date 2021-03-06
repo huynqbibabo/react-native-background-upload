@@ -1,7 +1,5 @@
 package com.reactnativebackgroundupload.service
 
-import android.os.Handler
-import android.os.Looper
 import io.reactivex.Observable
 import io.reactivex.subjects.PublishSubject
 import okhttp3.MediaType
@@ -11,10 +9,10 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
 
-class ProgressRequestBody : RequestBody {
+open class ProgressRequestBody : RequestBody {
 
-  val mFile: File
-  val ignoreFirstNumberOfWriteToCalls : Int
+  private val mFile: File
+  private val ignoreFirstNumberOfWriteToCalls : Int
 
 
   constructor(mFile: File) : super(){
@@ -30,7 +28,7 @@ class ProgressRequestBody : RequestBody {
 
   var numWriteToCalls = 0
 
-  protected val getProgressSubject: PublishSubject<Float> = PublishSubject.create<Float>()
+  private val getProgressSubject: PublishSubject<Float> = PublishSubject.create<Float>()
 
   fun getProgressSubject(): Observable<Float> {
     return getProgressSubject
@@ -38,7 +36,8 @@ class ProgressRequestBody : RequestBody {
 
 
   override fun contentType(): MediaType? {
-    return MediaType.parse("video/mp4")
+//    return MediaType.parse("video/mp4")
+    return MediaType.parse("application/octet-stream")
   }
 
   @Throws(IOException::class)
@@ -52,18 +51,18 @@ class ProgressRequestBody : RequestBody {
 
     val fileLength = mFile.length()
     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-    val `in` = FileInputStream(mFile)
+    val fis = FileInputStream(mFile)
     var uploaded: Long = 0
 
     try {
       var read: Int
       var lastProgressPercentUpdate = 0.0f
-      read = `in`.read(buffer)
+      read = fis.read(buffer)
       while (read != -1) {
 
         uploaded += read.toLong()
         sink.write(buffer, 0, read)
-        read = `in`.read(buffer)
+        read = fis.read(buffer)
 
         // when using HttpLoggingInterceptor it calls writeTo and passes data into a local buffer just for logging purposes.
         // the second call to write to is the progress we actually want to track
@@ -78,13 +77,12 @@ class ProgressRequestBody : RequestBody {
         }
       }
     } finally {
-      `in`.close()
+      fis.close()
     }
   }
 
 
   companion object {
-
     private val DEFAULT_BUFFER_SIZE = 2048
   }
 }

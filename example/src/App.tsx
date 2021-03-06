@@ -23,21 +23,12 @@ export default function App() {
         BackgroundUpload.startBackgroundUpload(
           'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/partUpload',
           response.uri,
-          '0oylibsytm6.mp4',
+          '02tc7t3sr8k.mp4',
           {
-            1: 'KE5EFa64ACYMM4CY9IFj',
-            2: '5vu1LORYZgvjr1sjkiK5',
-            3: 'zrCyoYAMeoxhoZlESR1S',
-            4: 'CfhLnj7MwXxb7Txbsaru',
-            5: '9niRZeP6ki9jmLdiIc8Z',
-            6: '3QcBqQHXBDzqhjh8Nx6v',
-            7: 'iUO8DfaJOjFPtyVZveGw',
-            8: 'xKzJuKfreM2cTwJTA47Z',
-            9: 'XrmBwIP8dAYFznEy1fon',
-            10: '8oQu63JjOwoWd5gVMxst',
-            11: '6VP8GuJQhM6NDliUI8KM',
-            12: 'FVGPV3DSXsCjpPQ5vaEE',
-          }
+            1: 'BlLVoiFjI7HwMNdPmQmd',
+            2: 'UKioI6dJ82fHvmUCUFLq',
+          },
+          1024 * 1024 * 2
         );
         // BackgroundUpload.startEncodingVideo(response.uri)
       }
