@@ -47,7 +47,10 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext, 
   @SuppressLint("EnqueueWork")
   @ReactMethod
   fun startBackgroundUpload(requestUrl: String, filePath: String, fileName: String, hash: ReadableMap) {
-    startNotify()
+    val mNotificationHelpers = NotificationHelpers(reactContext)
+    val mNotification = mNotificationHelpers.getProgressNotification(20, icon)
+    mNotificationHelpers.createNotificationChannel()
+    mNotificationHelpers.notify(mNotification)
 
 //    val realPath = RealPathUtil.getRealPath(reactContext, Uri.parse(filePath))
 //    val file = File(realPath)
@@ -91,59 +94,5 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext, 
     bis.close()
     fis.close()
     return result
-  }
-
-  fun startNotify() {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      val name = "Upload notification channel"
-      val importance = NotificationManager.IMPORTANCE_DEFAULT
-      val channel = NotificationChannel("UploadChannel", name, importance).apply {
-        description = name
-      }
-      // Register the channel with the system
-      val notificationManager: NotificationManager =
-        reactContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-      notificationManager.createNotificationChannel(channel)
-    }
-
-    val mBuilder = NotificationCompat.Builder(reactContext, "UploadChannel")
-      .setContentTitle("File Download")
-      .setContentText("Download in progress")
-      .setSmallIcon(icon)
-      .setOngoing(true)
-      .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-    // Start a the operation in a background thread
-    // Start a the operation in a background thread
-    Thread {
-      var incr: Int
-      // Do the "lengthy" operation 20 times
-      incr = 0
-      while (incr <= 100) {
-
-        // Sets the progress indicator to a max value, the current completion percentage and "determinate" state
-        mBuilder.setProgress(100, incr, false)
-        // Displays the progress bar for the first time.
-        with(NotificationManagerCompat.from(reactContext)) {
-          // notificationId is a unique int for each notification that you must define
-          notify(1, mBuilder.build())
-        }
-
-        // Sleeps the thread, simulating an operation
-        try {
-          // Sleep for 1 second
-          Thread.sleep((1 * 1000).toLong())
-        } catch (e: InterruptedException) {
-          Log.d("TAG", "sleep failure")
-        }
-        incr += 5
-      }
-      // When the loop is finished, updates the notification
-      mBuilder.setContentText("Download completed") // Removes the progress bar
-        .setProgress(0, 0, false)
-      with(NotificationManagerCompat.from(reactContext)) {
-        notify(1, mBuilder.build())
-      }
-    } // Starts the thread by calling the run() method in its Runnable
-      .start()
   }
 }
