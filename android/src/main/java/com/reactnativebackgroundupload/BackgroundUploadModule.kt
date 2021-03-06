@@ -1,14 +1,8 @@
 package com.reactnativebackgroundupload
 
 import android.annotation.SuppressLint
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.content.Context
 import android.net.Uri
-import android.os.Build
 import android.util.Log
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import com.arthenica.mobileffmpeg.Config
 import com.arthenica.mobileffmpeg.FFmpeg
 import com.facebook.react.bridge.ReactApplicationContext
@@ -16,9 +10,12 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableMap
 import java.io.*
+import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.concurrent.timer
 
 
-class BackgroundUploadModule(private val reactContext: ReactApplicationContext, private val icon: Int) : ReactContextBaseJavaModule(reactContext) {
+class BackgroundUploadModule(private val reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
   override fun getName(): String {
     return "BackgroundUpload"
   }
@@ -48,9 +45,23 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext, 
   @ReactMethod
   fun startBackgroundUpload(requestUrl: String, filePath: String, fileName: String, hash: ReadableMap) {
     val mNotificationHelpers = NotificationHelpers(reactContext)
-    val mNotification = mNotificationHelpers.getProgressNotification(20, icon)
     mNotificationHelpers.createNotificationChannel()
-    mNotificationHelpers.notify(mNotification)
+
+    var progress = 0
+    val timer = Timer()
+    timer.scheduleAtFixedRate(object : TimerTask() {
+      override fun run() {
+        if (progress > 100) {
+          mNotificationHelpers.cancelNotification()
+          timer.cancel()
+        } else {
+          mNotificationHelpers.startNotify(
+            mNotificationHelpers.getProgressNotificationBuilder(progress).build()
+          )
+          progress += 5
+        }
+      }
+    }, 0, 200)
 
 //    val realPath = RealPathUtil.getRealPath(reactContext, Uri.parse(filePath))
 //    val file = File(realPath)

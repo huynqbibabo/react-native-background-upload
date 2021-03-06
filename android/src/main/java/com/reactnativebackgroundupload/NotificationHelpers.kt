@@ -29,20 +29,20 @@ class NotificationHelpers(private val context: Context) {
     }
   }
 
-  fun getProgressNotification(progress: Int, icon: Int): Notification {
+  fun getProgressNotificationBuilder(progress: Int): NotificationCompat.Builder {
     return NotificationCompat.Builder(context, CHANNEL_ID).apply {
       setContentTitle("Đang tải lên...")
-      setContentText("Download in progress")
-      setSmallIcon(icon)
+      setContentText("$progress%")
+      setSmallIcon(android.R.drawable.stat_notify_sync)
       setOngoing(true)
-      setProgress(100, progress, true)
+      setProgress(100, progress, false)
       setDefaults(NotificationCompat.DEFAULT_ALL)
       setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
       priority = NotificationCompat.PRIORITY_HIGH
-    }.build()
+    }
   }
 
-  fun notify(notification: Notification) {
+  fun startNotify(notification: Notification) {
     with(NotificationManagerCompat.from(context)) {
       notify(1, notification)
     }
