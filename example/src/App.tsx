@@ -22,22 +22,15 @@ export default function App() {
       } else if (response.uri) {
         BackgroundUpload.startBackgroundUpload(
           'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/partUpload',
-          response.uri,
-          '0oylibsytm6.mp4',
+          // response.uri,
+          '/Users/ducminh/Library/Developer/CoreSimulator/Devices/40D61EA5-5CC8-4F24-9B9F-E43CA3F4B552/data/Containers/Data/Application/B4314DFC-A31A-477F-A744-20A83613D07D/tmp/trim.F6FC7F59-1B56-450E-8B69-F54D832FAD18.MOV',
+          // '/Users/ducminh/Library/Developer/CoreSimulator/Devices/40D61EA5-5CC8-4F24-9B9F-E43CA3F4B552/data/Containers/Data/Application/9BFD828F-B2C1-49E5-AA3E-3F9D46417C7B/Library/Caches/CompressedOutput/1615195255096.mp4',
+          '0t2mh1e8fxx.mp4',
           {
-            1: 'KE5EFa64ACYMM4CY9IFj',
-            2: '5vu1LORYZgvjr1sjkiK5',
-            3: 'zrCyoYAMeoxhoZlESR1S',
-            4: 'CfhLnj7MwXxb7Txbsaru',
-            5: '9niRZeP6ki9jmLdiIc8Z',
-            6: '3QcBqQHXBDzqhjh8Nx6v',
-            7: 'iUO8DfaJOjFPtyVZveGw',
-            8: 'xKzJuKfreM2cTwJTA47Z',
-            9: 'XrmBwIP8dAYFznEy1fon',
-            10: '8oQu63JjOwoWd5gVMxst',
-            11: '6VP8GuJQhM6NDliUI8KM',
-            12: 'FVGPV3DSXsCjpPQ5vaEE',
-          }
+            1: 'BlLVoiFjI7HwMNdPmQmd',
+            2: 'UKioI6dJ82fHvmUCUFLq',
+          },
+          1024 * 1024 * 2
         );
         // BackgroundUpload.startEncodingVideo(response.uri)
       }

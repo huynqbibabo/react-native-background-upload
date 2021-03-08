@@ -6,10 +6,10 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.uimanager.ViewManager
 
 
-class BackgroundUploadPackage(private val icon: Int) : ReactPackage {
+class BackgroundUploadPackage() : ReactPackage {
 
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
-        return listOf(BackgroundUploadModule(reactContext, icon))
+        return listOf(BackgroundUploadModule(reactContext))
     }
 
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {
