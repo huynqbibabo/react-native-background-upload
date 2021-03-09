@@ -36,8 +36,8 @@ class ClearNotificationWorker(
       mNotificationHelpers.startNotify(
         mNotificationHelpers.getCompleteNotificationBuilder().build()
       )
-        completer.set(Result.success())
       Log.i("PROGRESS", "complete")
+      completer.set(Result.success())
     }
   }
 }

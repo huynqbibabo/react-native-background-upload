@@ -12,7 +12,6 @@ export default function App() {
       videoQuality: 'high',
       mediaType: 'video',
     };
-
     launchImageLibrary(options, (response) => {
       console.log('Response = ', response);
       if (response.didCancel) {
@@ -20,15 +19,16 @@ export default function App() {
       } else if (response.errorCode) {
         console.log('ImagePicker Error: ', response.errorCode);
       } else if (response.uri) {
-        BackgroundUpload.startBackgroundUpload(
-          'https://localhost/',
-          response.uri,
-          'testFile.mp4',
-          {
-            1: 'aBcDxYz', // sample hash code
-          },
-          1024 * 1024 * 2
-        );
+        // BackgroundUpload.startBackgroundUpload(
+        //   'https://localhost/',
+        //   response.uri,
+        //   'testFile.mp4',
+        //   {
+        //     1: 'aBcDxYz', // sample hash code
+        //   },
+        //   1024 * 1024 * 2
+        // );
+        BackgroundUpload.startCompressVideo(response.uri);
       }
     });
   };
