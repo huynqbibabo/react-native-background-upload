@@ -2,10 +2,7 @@ package com.reactnativebackgroundupload
 
 import android.annotation.SuppressLint
 import android.net.Uri
-import android.util.Log
 import androidx.work.*
-import com.arthenica.mobileffmpeg.Config
-import com.arthenica.mobileffmpeg.FFmpeg
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
@@ -17,32 +14,9 @@ import java.io.*
 import java.util.*
 import kotlin.collections.ArrayList
 
-
 class BackgroundUploadModule(private val reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
   override fun getName(): String {
     return "BackgroundUpload"
-  }
-
-  @ReactMethod
-  fun startEncodingVideo(filePath: String) {
-    val inputPath = RealPathUtil.getRealPath(reactContext, Uri.parse(filePath))
-    val outputPath = "${reactContext.externalCacheDir}${System.currentTimeMillis()}.mp4"
-
-    // take too long
-    val rc = FFmpeg.execute("-i $inputPath -vcodec h264 -b:v 1000k -acodec aac $outputPath")
-
-    Config.enableStatisticsCallback {
-      newStatistics -> Log.d(Config.TAG, String.format("frame: %d, time: %d", newStatistics.videoFrameNumber, newStatistics.time))
-    }
-
-    when (rc) {
-      Config.RETURN_CODE_SUCCESS -> Log.i(Config.TAG, "Command execution completed successfully.")
-      Config.RETURN_CODE_CANCEL -> Log.i(Config.TAG, "Command execution cancelled by user.")
-      else -> {
-        Log.i(Config.TAG, String.format("Command execution failed with rc=%d and the output below.", rc))
-        Config.printLastCommandOutput(Log.INFO)
-      }
-    }
   }
 
   @SuppressLint("EnqueueWork")
@@ -99,28 +73,5 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext) 
     bis.close()
     fis.close()
     return result
-  }
-
-  fun runNotification() {
-    val mNotificationHelpers = NotificationHelpers(reactContext)
-    mNotificationHelpers.createNotificationChannel()
-
-    var progress = 0
-    val timer = Timer()
-    timer.scheduleAtFixedRate(object : TimerTask() {
-      override fun run() {
-        if (progress > 100) {
-          mNotificationHelpers.startNotify(
-            mNotificationHelpers.getCompleteNotificationBuilder().build()
-          )
-          timer.cancel()
-        } else {
-          mNotificationHelpers.startNotify(
-            mNotificationHelpers.getProgressNotificationBuilder(progress).build()
-          )
-          progress += 5
-        }
-      }
-    }, 0, 200)
   }
 }
