@@ -45,25 +45,27 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext) 
       object : CompressionListener {
         override fun onProgress(percent: Float) {
           // Update UI with progress value
-          Log.d("COMPRESSION", "Compression progress: ${percent.toInt()}")
-          mNotificationHelpers.startNotify(
-            mNotificationHelpers.getProgressNotificationBuilder(percent.toInt()).build()
-          )
+          if (percent <= 100 && percent.toInt() % 5 == 0) {
+            Log.d("COMPRESSION", "Compression progress: ${percent.toInt()}")
+            mNotificationHelpers.startNotify(
+              mNotificationHelpers.getProgressNotificationBuilder(percent.toInt()).build()
+            )
+          }
         }
         override fun onStart() {
           // Compression start
-          Log.d("COMPRESSION", "Compression start")
+          Log.wtf("COMPRESSION", "Compression start")
         }
         override fun onSuccess() {
           // On Compression success
-          Log.d("COMPRESSION", "Compression success")
+          Log.wtf("COMPRESSION", "Compression success")
           mNotificationHelpers.startNotify(
             mNotificationHelpers.getCompleteNotificationBuilder().build()
           )
         }
         override fun onFailure(failureMessage: String) {
           // On Failure
-          Log.d("COMPRESSION", "Compression failure")
+          Log.wtf("failureMessage", failureMessage)
           mNotificationHelpers.startNotify(
             mNotificationHelpers.getFailureNotificationBuilder().build()
           )

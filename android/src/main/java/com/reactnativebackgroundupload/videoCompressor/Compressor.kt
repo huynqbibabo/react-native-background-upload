@@ -15,8 +15,8 @@ import kotlin.math.roundToInt
 object Compressor {
 
     private const val MIN_BITRATE = 1000000
-    private const val MIN_HEIGHT = 1280.0
-    private const val MIN_WIDTH = 720.0
+    private const val MIN_HEIGHT = 640.0
+    private const val MIN_WIDTH = 360.0
     private const val FRAME_RATE = 30
     private const val I_FRAME_INTERVAL = 2
     private const val MIME_TYPE = "video/avc"
@@ -474,38 +474,28 @@ object Compressor {
         val newWidth: Int
         val newHeight: Int
 
-//        if (width >= height) {
-//          val ratio = (width / 1280).takeIf { width / 1280 >= height / 720 } ?: (height / 720)
-//          newWidth = ((width / ratio / 16).roundToInt() * 16)
-//          newHeight = ((height / ratio / 16).roundToInt() * 16)
-//        } else {
-//          val ratio = (width / 720).takeIf { width / 720 >= height / 1280 } ?: (height / 1280)
-//          newWidth = (width / ratio).roundToInt()
-//          newHeight = (height / ratio).roundToInt()
-//        }
-
         when {
-            width >= 1920 || height >= 1920 -> {
-                newWidth = (((width * 0.5) / 16).roundToInt() * 16)
-                newHeight = (((height * 0.5) / 16f).roundToInt() * 16)
+          width >= 1920 || height >= 1920 -> {
+            newWidth = (((width * 0.5) / 16).roundToInt() * 16)
+            newHeight = (((height * 0.5) / 16f).roundToInt() * 16)
+          }
+          width >= 1280 || height >= 1280 -> {
+            newWidth = (((width * 0.75) / 16).roundToInt() * 16)
+            newHeight = (((height * 0.75) / 16).roundToInt() * 16)
+          }
+          width >= 960 || height >= 960 -> {
+            if (width > height) {
+              newWidth = (((MIN_HEIGHT * 0.95) / 16).roundToInt() * 16)
+              newHeight = (((MIN_WIDTH * 0.95) / 16).roundToInt() * 16)
+            } else {
+              newWidth = (((MIN_WIDTH * 0.95) / 16).roundToInt() * 16)
+              newHeight = (((MIN_HEIGHT * 0.95) / 16).roundToInt() * 16)
             }
-            width >= 1280 || height >= 1280 -> {
-                newWidth = (((width * 0.75) / 16).roundToInt() * 16)
-                newHeight = (((height * 0.75) / 16).roundToInt() * 16)
-            }
-            width >= MIN_WIDTH || height >= MIN_WIDTH -> {
-              val ratio: Double = if (width > height) {
-                (width / MIN_HEIGHT).takeIf { width / MIN_HEIGHT >= height / MIN_WIDTH } ?: (height / MIN_WIDTH)
-              } else {
-                (width / MIN_WIDTH).takeIf { width / MIN_WIDTH >= height / MIN_HEIGHT } ?: (height / MIN_HEIGHT)
-              }
-              newWidth = ((width * 1.1 / ratio / 16).roundToInt() * 16)
-              newHeight = ((height * 1.1 / ratio / 16).roundToInt() * 16)
-            }
-            else -> {
-                newWidth = ((width * 0.9 / 16).roundToInt() * 16)
-                newHeight = ((height * 0.9 / 16).roundToInt() * 16)
-            }
+          }
+          else -> {
+            newWidth = (((width * 0.9) / 16).roundToInt() * 16)
+            newHeight = (((height * 0.9) / 16).roundToInt() * 16)
+          }
         }
 
         return Pair(newWidth, newHeight)
