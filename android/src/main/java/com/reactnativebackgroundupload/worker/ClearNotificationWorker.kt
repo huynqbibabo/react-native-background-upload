@@ -55,20 +55,24 @@ class ClearNotificationWorker(
           }
           override fun onError(anError: ANError) {
             Log.wtf("CHAIN", "$anError")
+            if (anError.errorCode !== 0) {
+              Log.d("CHAIN", "onError errorCode : " + anError.errorCode)
+              Log.d("CHAIN", "onError errorBody : " + anError.errorBody)
+              Log.d("CHAIN", "onError errorDetail : " + anError.errorDetail)
+            } else {
+              Log.d("CHAIN", "onError errorDetail : " + anError.errorDetail)
+            }
             completer.set(Result.failure())
           }
         })
       } else {
-        completer.set(Result.failure())
+        mNotificationHelpers.startNotify(
+          notificationId,
+          mNotificationHelpers.getCompleteNotificationBuilder().build()
+        )
+        Log.d("CHAIN", "success")
+        completer.set(Result.success())
       }
-
-      // clear upload notification.
-      mNotificationHelpers.startNotify(
-        notificationId,
-        mNotificationHelpers.getCompleteNotificationBuilder().build()
-      )
-      Log.i("PROGRESS", "complete")
-      completer.set(Result.success())
     }
   }
 }

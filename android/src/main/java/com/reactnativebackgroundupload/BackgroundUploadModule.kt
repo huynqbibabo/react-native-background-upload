@@ -35,30 +35,12 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext) 
       if (chainTask != null) {
         val url = chainTask.getString("url")
         val method = chainTask.getString("method")
-        val auth = chainTask.getString("auth")
+        val authorization = chainTask.getString("authorization")
         val data = chainTask.getString("data")
-        setInputData(ModelRequestMetadata().createInputDataForRequestTask(url, method, auth, data))
+        setInputData(ModelRequestMetadata().createInputDataForRequestTask(url, method, authorization, data))
       }
     }.build()
     workContinuation = workContinuation.then(metadataRequest)
-//      if (url != null && method != null) {
-//        AndroidNetworking.post(url).apply {
-//          if (chainTask.hasKey("auth")) {
-//            addHeaders("Authorization", chainTask.getString("auth"))
-//          }
-//          if (chainTask.hasKey("data")) {
-//            addJSONObjectBody(JSONObject(chainTask.getString("data")!!))
-//          }
-//        }.build().getAsJSONObject(object : JSONObjectRequestListener {
-//          override fun onResponse(response: JSONObject?) {
-//            Log.d("CHAIN", "$response")
-//          }
-//          override fun onError(anError: ANError) {
-//            Log.wtf("CHAIN", "$anError")
-//          }
-//
-//        });
-//      }
     workContinuation.enqueue()
   }
 }

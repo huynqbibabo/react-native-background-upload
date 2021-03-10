@@ -14,7 +14,7 @@ type BackgroundUploadType = {
     metadataUrl: string,
     filePath: string,
     chunkSize: number,
-    chainTask?: NetworkTask
+    chainTask: NetworkTask | null
   ): void;
 };
 
