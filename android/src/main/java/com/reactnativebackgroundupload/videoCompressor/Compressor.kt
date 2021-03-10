@@ -22,13 +22,12 @@ object Compressor {
     private const val MIME_TYPE = "video/avc"
     private const val MEDIACODEC_TIMEOUT_DEFAULT = 100L
 
-    private const val INVALID_BITRATE =
+    const val INVALID_BITRATE =
         "The provided bitrate is smaller than what is needed for compression " +
                 "try to set isMinBitRateEnabled to false"
 
     var isRunning = true
 
-    @Suppress("DEPRECATION")
     fun compressVideo(
         source: String,
         destination: String,

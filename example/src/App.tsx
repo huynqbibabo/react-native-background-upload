@@ -19,16 +19,12 @@ export default function App() {
       } else if (response.errorCode) {
         console.log('ImagePicker Error: ', response.errorCode);
       } else if (response.uri) {
-        // BackgroundUpload.startBackgroundUpload(
-        //   'https://localhost/',
-        //   response.uri,
-        //   'testFile.mp4',
-        //   {
-        //     1: 'aBcDxYz', // sample hash code
-        //   },
-        //   1024 * 1024 * 2
-        // );
-        BackgroundUpload.startCompressVideo(response.uri);
+        BackgroundUpload.startBackgroundUploadVideo(
+          'https://localhost/uploadUrl',
+          'https://localhost/metaDataUrl',
+          response.uri,
+          1024 * 1024 * 2.5
+        );
       }
     });
   };
@@ -36,7 +32,7 @@ export default function App() {
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.box} onPress={onPress}>
-        <Text>Click</Text>
+        <Text>Pick video and Upload</Text>
       </TouchableOpacity>
     </View>
   );

@@ -8,13 +8,13 @@ import androidx.annotation.WorkerThread
  * elaziz.shehadeh@gmail.com
  */
 interface CompressionListener {
-    @MainThread
+    @WorkerThread
     fun onStart()
 
-    @MainThread
+    @WorkerThread
     fun onSuccess()
 
-    @MainThread
+    @WorkerThread
     fun onFailure(failureMessage: String)
 
     @WorkerThread

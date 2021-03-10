@@ -6,21 +6,16 @@ import android.util.Log
 import androidx.concurrent.futures.CallbackToFutureAdapter
 import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
+import com.androidnetworking.AndroidNetworking
+import com.androidnetworking.error.ANError
+import com.androidnetworking.interfaces.ParsedRequestListener
+import com.androidnetworking.interfaces.UploadProgressListener
 import com.google.common.util.concurrent.ListenableFuture
-import com.google.gson.Gson
 import com.reactnativebackgroundupload.NotificationHelpers
+import com.reactnativebackgroundupload.model.ModelClearNotification
 import com.reactnativebackgroundupload.model.ModelUploadInput
 import com.reactnativebackgroundupload.model.ModelUploadResponse
-import com.reactnativebackgroundupload.service.ProgressRequestBody
-import com.reactnativebackgroundupload.service.RetrofitClient
-import io.reactivex.schedulers.Schedulers
-import okhttp3.MultipartBody
-import okhttp3.RequestBody
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
 import java.io.File
-import java.net.HttpURLConnection
 import kotlin.math.roundToInt
 
 internal interface UploadCallback {
@@ -37,13 +32,18 @@ class UploadWorker(
 
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
+      val notificationId = inputData.getInt(ModelUploadInput.KEY_NOTIFICATION_ID, 1)
+
       val callback: UploadCallback = object : UploadCallback {
         override fun success() {
-          completer.set(Result.success())
+          completer.set(Result.success(
+            ModelClearNotification().createInputDataForClearNotification(notificationId)
+          ))
         }
 
         override fun failure() {
           mNotificationHelpers.startNotify(
+            notificationId,
             mNotificationHelpers.getFailureNotificationBuilder().build()
           )
           completer.set(Result.failure())
@@ -65,48 +65,44 @@ class UploadWorker(
       val prt = inputData.getInt(ModelUploadInput.KEY_PRT, 0)
       val numberOfChunks = inputData.getInt(ModelUploadInput.KEY_NUMBER_OF_CHUNKS, 1)
 
-      uploadVideo(requestUrl, fileName, filePath, hash, prt, numberOfChunks, callback)
+      uploadVideo(requestUrl, fileName, filePath, hash, prt, numberOfChunks, notificationId, callback)
       callback
     }
   }
 
   @SuppressLint("CheckResult")
-  private fun uploadVideo(requestUrl: String, fileName: String, filePath: String, hash: String, prt: Int, numberOfChunks: Int, callback: UploadCallback) {
-    val apiService = RetrofitClient().getApiService()
-    if (apiService != null) {
-      val file = File(filePath)
+  private fun uploadVideo(requestUrl: String, fileName: String, filePath: String, hash: String, prt: Int, numberOfChunks: Int, notificationId: Int, callback: UploadCallback) {
+    val file = File(filePath)
 
-      val prtBody = RequestBody.create(MultipartBody.FORM, prt.toString());
-      val hashBody = RequestBody.create(MultipartBody.FORM, hash);
-      val fileNameBody = RequestBody.create(MultipartBody.FORM, fileName);
-
-      val fileBody = ProgressRequestBody(file);
-      val filePart = MultipartBody.Part.createFormData("data", fileName, fileBody)
-
-      fileBody.getProgressSubject()
-        .subscribeOn(Schedulers.io())
-        .subscribe { progress ->
-//          Log.i("PROGRESS", "${(progress * prt / numberOfChunks).roundToInt()}%")
-          mNotificationHelpers.startNotify(
-            mNotificationHelpers.getProgressNotificationBuilder(((progress + (prt - 1) * 100) / numberOfChunks).roundToInt()).build()
-          )
-        }
-      val call: Call<ModelUploadResponse> = apiService.uploadFile(requestUrl, fileNameBody, prtBody, hashBody, filePart);
-      call.enqueue(object : Callback<ModelUploadResponse> {
-        override fun onResponse(call: Call<ModelUploadResponse>, response: Response<ModelUploadResponse>) {
-          Log.d("call api response", Gson().toJson(response.body()))
-          Log.d("call api response", Gson().toJson(response.code()))
-          if (response.code() == HttpURLConnection.HTTP_OK) {
-            callback.success()
-          } else {
-            callback.retry()
-          }
-        }
-        override fun onFailure(call: Call<ModelUploadResponse>, t: Throwable) {
-          Log.d("call api fail", Gson().toJson(t))
+    val requestBuilder = AndroidNetworking.upload(requestUrl).apply {
+      addMultipartFile("data", file)
+      addMultipartParameter("filename", fileName)
+      addMultipartParameter("hash", hash)
+      addMultipartParameter("prt", prt.toString())
+    }.build()
+    requestBuilder.uploadProgressListener = UploadProgressListener { bytesUploaded, totalBytes ->
+      val progress = (bytesUploaded * 100 / totalBytes).toDouble()
+      Log.d("UPLOAD", "progress: $progress")
+      mNotificationHelpers.startNotify(
+        notificationId,
+        mNotificationHelpers.getProgressNotificationBuilder(((progress + (prt - 1) * 100) / numberOfChunks).roundToInt()).build()
+      )
+    }
+    requestBuilder.getAsObject(ModelUploadResponse::class.java, object : ParsedRequestListener<ModelUploadResponse> {
+      override fun onResponse(response: ModelUploadResponse) {
+        val metadata = response.data
+        if (metadata != null && response.status == "1") {
+          callback.success()
+        } else {
+          Log.wtf("METADATA:", "no metadata")
           callback.failure()
         }
-      })
-    }
+      }
+      override fun onError(error: ANError) {
+        // handle error
+        Log.wtf("UPLOAD:", "$error")
+        callback.failure()
+      }
+    })
   }
 }
