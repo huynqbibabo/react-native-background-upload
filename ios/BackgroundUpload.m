@@ -24,7 +24,7 @@ RCT_EXPORT_METHOD(startBackgroundUpload:
                                        name:@"data" fileName:fileName mimeType:@"video/*" error:nil
             ];
             [formData appendPartWithFormData:[fileName dataUsingEncoding:NSUTF8StringEncoding] name:@"filename"];
-            [formData appendPartWithFormData:[@"za4nDFtOi5JmTw23vXZM" dataUsingEncoding:NSUTF8StringEncoding] name:@"hash"];
+            [formData appendPartWithFormData:[@"mHuZmTipV3mOVkkSGqz7" dataUsingEncoding:NSUTF8StringEncoding] name:@"hash"];
             [formData appendPartWithFormData:[@"1" dataUsingEncoding:NSUTF8StringEncoding] name:@"prt"];
         }
         error:nil

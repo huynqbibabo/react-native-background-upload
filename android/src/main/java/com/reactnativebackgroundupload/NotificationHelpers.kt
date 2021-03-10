@@ -11,9 +11,8 @@ import androidx.core.app.NotificationManagerCompat
 class NotificationHelpers(private val context: Context) {
 
   companion object {
-    val CHANNEL_ID = "UploadChannel"
-    val CHANNEL_NAME = "Upload notification channel"
-    val NOTIFICATION_ID = 1
+    const val CHANNEL_ID = "UploadChannel"
+    const val CHANNEL_NAME = "Upload notification channel"
   }
 
   fun createNotificationChannel() {
@@ -38,7 +37,7 @@ class NotificationHelpers(private val context: Context) {
       setProgress(100, progress, false)
       setDefaults(NotificationCompat.DEFAULT_ALL)
       setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-      priority = NotificationCompat.PRIORITY_HIGH
+      priority = NotificationCompat.PRIORITY_DEFAULT
     }
   }
 
@@ -66,15 +65,28 @@ class NotificationHelpers(private val context: Context) {
     }
   }
 
-  fun startNotify(notification: Notification) {
-    with(NotificationManagerCompat.from(context)) {
-      notify(1, notification)
+  fun getSplitNotificationBuilder(): NotificationCompat.Builder {
+    return NotificationCompat.Builder(context, CHANNEL_ID).apply {
+      setContentTitle("Chuẩn bị file để tải lên")
+//      setContentText("Hoàn thành")
+      setSmallIcon(android.R.drawable.ic_menu_upload)
+      setProgress(100, 0, true)
+      setOngoing(false)
+      setDefaults(NotificationCompat.DEFAULT_ALL)
+      setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+      priority = NotificationCompat.PRIORITY_DEFAULT
     }
   }
 
-  fun cancelNotification() {
+  fun startNotify(notificationId: Int, notification: Notification) {
     with(NotificationManagerCompat.from(context)) {
-      cancel(NOTIFICATION_ID)
+      notify(notificationId, notification)
+    }
+  }
+
+  fun cancelNotification(notificationId: Int) {
+    with(NotificationManagerCompat.from(context)) {
+      cancel(notificationId)
     }
   }
 }

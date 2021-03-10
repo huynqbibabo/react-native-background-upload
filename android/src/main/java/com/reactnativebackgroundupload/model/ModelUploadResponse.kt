@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName;
 
 class ModelUploadResponse {
   @SerializedName("status")
-  var status: Number? = null
+  var status: String? = null
 
   @SerializedName("message")
   var message: String? = null

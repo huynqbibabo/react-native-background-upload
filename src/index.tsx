@@ -1,16 +1,12 @@
 import { NativeModules } from 'react-native';
 
-type HashMap = { [key: string]: string };
-
 type BackgroundUploadType = {
-  startBackgroundUpload(
-    url: string,
+  startBackgroundUploadVideo(
+    uploadUrl: string,
+    metadataUrl: string,
     filePath: string,
-    fileName: string,
-    hash: HashMap,
     chunkSize: number
   ): void;
-  startEncodingVideo(filePath: string): void;
 };
 
 const { BackgroundUpload } = NativeModules;
