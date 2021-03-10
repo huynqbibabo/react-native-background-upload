@@ -36,9 +36,7 @@ class UploadWorker(
 
       val callback: UploadCallback = object : UploadCallback {
         override fun success() {
-          completer.set(Result.success(
-            ModelClearNotification().createInputDataForClearNotification(notificationId)
-          ))
+          completer.set(Result.success())
         }
 
         override fun failure() {
