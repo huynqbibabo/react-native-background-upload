@@ -23,7 +23,8 @@ export default function App() {
           'https://localhost/uploadUrl',
           'https://localhost/metaDataUrl',
           response.uri,
-          1024 * 1024 * 2.5
+          1024 * 1024 * 2.5,
+          null
         );
       }
     });

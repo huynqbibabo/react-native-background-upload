@@ -36,11 +36,8 @@ class UploadWorker(
 
       val callback: UploadCallback = object : UploadCallback {
         override fun success() {
-          completer.set(Result.success(
-            ModelClearNotification().createInputDataForClearNotification(notificationId)
-          ))
+          completer.set(Result.success())
         }
-
         override fun failure() {
           mNotificationHelpers.startNotify(
             notificationId,
@@ -48,7 +45,6 @@ class UploadWorker(
           )
           completer.set(Result.failure())
         }
-
         override fun retry() {
           if (runAttemptCount > 2) {
             completer.set(Result.failure())
@@ -82,7 +78,7 @@ class UploadWorker(
     }.build()
     requestBuilder.uploadProgressListener = UploadProgressListener { bytesUploaded, totalBytes ->
       val progress = (bytesUploaded * 100 / totalBytes).toDouble()
-      Log.d("UPLOAD", "progress: $progress")
+//      Log.d("UPLOAD", "progress: $progress")
       mNotificationHelpers.startNotify(
         notificationId,
         mNotificationHelpers.getProgressNotificationBuilder(((progress + (prt - 1) * 100) / numberOfChunks).roundToInt()).build()

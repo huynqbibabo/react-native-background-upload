@@ -1,4 +1,4 @@
-package com.reactnativebackgroundupload;
+package com.reactnativebackgroundupload.util;
 
 import android.annotation.SuppressLint;
 import android.content.ContentUris;

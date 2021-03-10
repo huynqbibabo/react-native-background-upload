@@ -104,9 +104,13 @@ class RequestMetadataWorker(
           ?: workManager.beginWith(uploadRequest)
       }
       // add clean up work
+      val url = inputData.getString(ModelRequestMetadata.KEY_CHAIN_URL)
+      val method = inputData.getString(ModelRequestMetadata.KEY_METHOD)
+      val authorization = inputData.getString(ModelRequestMetadata.KEY_AUTHORIZATION)
+      val chainData = inputData.getString(ModelRequestMetadata.KEY_DATA)
       val clearRequest = OneTimeWorkRequestBuilder<ClearNotificationWorker>()
         .setInputData(
-          ModelClearNotification().createInputDataForClearNotification(notificationId)
+          ModelClearNotification().createInputDataForClearNotification(notificationId, fileName, url, method, authorization, chainData)
         ).build()
       workContinuation = workContinuation?.then(clearRequest)
       workContinuation?.enqueue()

@@ -1,11 +1,20 @@
 import { NativeModules } from 'react-native';
 
+type NetworkTask = {
+  url: string;
+  method: 'GET' | 'POST';
+  // headers?: { [key: string]: string };
+  authorization?: string;
+  data?: string;
+};
+
 type BackgroundUploadType = {
   startBackgroundUploadVideo(
     uploadUrl: string,
     metadataUrl: string,
     filePath: string,
-    chunkSize: number
+    chunkSize: number,
+    chainTask: NetworkTask | null
   ): void;
 };
 

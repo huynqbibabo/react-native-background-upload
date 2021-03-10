@@ -8,7 +8,7 @@ import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
 import com.google.common.util.concurrent.ListenableFuture
 import com.reactnativebackgroundupload.NotificationHelpers
-import com.reactnativebackgroundupload.RealPathUtil
+import com.reactnativebackgroundupload.util.RealPathUtil
 import com.reactnativebackgroundupload.model.ModelTranscodeInput
 import com.reactnativebackgroundupload.videoCompressor.CompressionListener
 import com.reactnativebackgroundupload.videoCompressor.Compressor
@@ -80,7 +80,7 @@ class CompressWorker(
 //              Log.d("COMPRESSION", "Compression progress: ${percent.toInt()}")
               mNotificationHelpers.startNotify(
                 notificationId,
-                mNotificationHelpers.getProgressNotificationBuilder(percent.toInt()).build()
+                mNotificationHelpers.getProgressNotificationBuilder(percent.toInt()).setContentTitle("Đang nén video...").build()
               )
             }
           }
