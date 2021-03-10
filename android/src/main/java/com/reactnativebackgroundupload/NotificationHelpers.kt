@@ -71,7 +71,7 @@ class NotificationHelpers(private val context: Context) {
 //      setContentText("Hoàn thành")
       setSmallIcon(android.R.drawable.ic_menu_upload)
       setProgress(100, 0, true)
-      setOngoing(false)
+      setOngoing(true)
       setDefaults(NotificationCompat.DEFAULT_ALL)
       setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
       priority = NotificationCompat.PRIORITY_DEFAULT
