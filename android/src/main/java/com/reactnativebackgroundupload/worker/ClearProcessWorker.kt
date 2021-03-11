@@ -10,11 +10,11 @@ import com.androidnetworking.error.ANError
 import com.androidnetworking.interfaces.JSONObjectRequestListener
 import com.google.common.util.concurrent.ListenableFuture
 import com.reactnativebackgroundupload.NotificationHelpers
-import com.reactnativebackgroundupload.model.ModelClearNotification
+import com.reactnativebackgroundupload.model.ModelClearTask
 import org.json.JSONArray
 import org.json.JSONObject
 
-class ClearNotificationWorker(
+class ClearProcessWorker(
   context: Context,
   params: WorkerParameters
 ) : ListenableWorker(context, params) {
@@ -22,14 +22,14 @@ class ClearNotificationWorker(
 
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
-      val url = inputData.getString(ModelClearNotification.KEY_CHAIN_URL)
-      val method = inputData.getString(ModelClearNotification.KEY_METHOD)
-      val notificationId = inputData.getInt(ModelClearNotification.KEY_NOTIFICATION_ID, 1)
+      val url = inputData.getString(ModelClearTask.KEY_CHAIN_URL)
+      val method = inputData.getString(ModelClearTask.KEY_METHOD)
+      val notificationId = inputData.getInt(ModelClearTask.KEY_NOTIFICATION_ID, 1)
 
       if (url != null && method != null) {
-        val chainData = inputData.getString(ModelClearNotification.KEY_DATA)
-        val authorization = inputData.getString(ModelClearNotification.KEY_AUTHORIZATION)
-        val fileName = inputData.getString(ModelClearNotification.KEY_FILE_NAME)!!
+        val chainData = inputData.getString(ModelClearTask.KEY_DATA)
+        val authorization = inputData.getString(ModelClearTask.KEY_AUTHORIZATION)
+        val fileName = inputData.getString(ModelClearTask.KEY_FILE_NAME)!!
 
         AndroidNetworking.post(url).apply {
           if (authorization != null) {
@@ -55,7 +55,7 @@ class ClearNotificationWorker(
           }
           override fun onError(anError: ANError) {
             Log.wtf("CHAIN", "$anError")
-            if (anError.errorCode !== 0) {
+            if (anError.errorCode != 0) {
               Log.d("CHAIN", "onError errorCode : " + anError.errorCode)
               Log.d("CHAIN", "onError errorBody : " + anError.errorBody)
               Log.d("CHAIN", "onError errorDetail : " + anError.errorDetail)
@@ -66,11 +66,11 @@ class ClearNotificationWorker(
           }
         })
       } else {
+        Log.d("CHAIN", "success")
         mNotificationHelpers.startNotify(
           notificationId,
           mNotificationHelpers.getCompleteNotificationBuilder().build()
         )
-        Log.d("CHAIN", "success")
         completer.set(Result.success())
       }
     }

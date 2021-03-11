@@ -15,18 +15,26 @@ class ModelRequestMetadata {
     const val KEY_DATA = "data"
   }
 
-  fun createInputDataForRequestMetadata(notificationId: Int, chunkArray: Array<String>, uploadUrl: String, metadataUrl: String): Data {
+  fun createInputDataForRequestMetadata(chunkArray: Array<String>): Data {
+    return workDataOf(
+      KEY_CHUNK_PATH_ARRAY to chunkArray
+    )
+  }
+
+  fun createInputDataForUpload(notificationId: Int, uploadUrl: String, metadataUrl: String): Data {
     return workDataOf(
       KEY_NOTIFICATION_ID to notificationId,
-      KEY_CHUNK_PATH_ARRAY to chunkArray,
       KEY_METADATA_URL to metadataUrl,
       KEY_UPLOAD_URL to uploadUrl
     )
   }
 
-  fun createInputDataForRequestTask(url: String?, method: String?, auth: String?, data: String?): Data {
+  fun createInputDataForRequestTask(notificationId: Int, uploadUrl: String, metadataUrl: String, taskUrl: String?, method: String?, auth: String?, data: String?): Data {
     return workDataOf(
-      KEY_CHAIN_URL to url,
+      KEY_NOTIFICATION_ID to notificationId,
+      KEY_METADATA_URL to metadataUrl,
+      KEY_UPLOAD_URL to uploadUrl,
+      KEY_CHAIN_URL to taskUrl,
       KEY_METHOD to method,
       KEY_AUTHORIZATION to auth,
       KEY_DATA to data

@@ -22,8 +22,6 @@ class SplitWorker(
       val notificationId = inputData.getInt(ModelTranscodeInput.KEY_NOTIFICATION_ID, 1)
       val chunkSize = inputData.getInt(ModelTranscodeInput.KEY_CHUNK_SIZE, ModelTranscodeInput.DEFAULT_CHUNK_SIZE)
       val filePath = inputData.getString(ModelTranscodeInput.KEY_FILE_PATH)!!
-      val uploadUrl = inputData.getString(ModelTranscodeInput.KEY_UPLOAD_URL)!!
-      val metadataUrl = inputData.getString(ModelTranscodeInput.KEY_METADATA_URL)!!
 
       val mNotificationHelpers = NotificationHelpers(applicationContext)
       mNotificationHelpers.startNotify(notificationId, mNotificationHelpers.getSplitNotificationBuilder().build())
@@ -55,7 +53,7 @@ class SplitWorker(
       }
 
       completer.set(Result.success(
-        ModelRequestMetadata().createInputDataForRequestMetadata(notificationId, result.toTypedArray(), uploadUrl, metadataUrl)
+        ModelRequestMetadata().createInputDataForRequestMetadata(result.toTypedArray())
       ))
     }
   }
