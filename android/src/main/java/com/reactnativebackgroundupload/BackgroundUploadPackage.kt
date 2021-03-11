@@ -6,7 +6,8 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.uimanager.ViewManager
 
 
-class BackgroundUploadPackage : ReactPackage {
+class BackgroundUploadPackage() : ReactPackage {
+
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
         return listOf(BackgroundUploadModule(reactContext))
     }

@@ -1,18 +1,40 @@
-import * as React from 'react';
-
-import { StyleSheet, View, Text } from 'react-native';
+import React from 'react';
+import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import BackgroundUpload from 'react-native-background-upload';
+import {
+  ImageLibraryOptions,
+  launchImageLibrary,
+} from 'react-native-image-picker';
 
 export default function App() {
-  const [result, setResult] = React.useState<number | undefined>();
-
-  React.useEffect(() => {
-    BackgroundUpload.multiply(3, 7).then(setResult);
-  }, []);
+  const onPress = () => {
+    const options: ImageLibraryOptions = {
+      videoQuality: 'high',
+      mediaType: 'video',
+    };
+    launchImageLibrary(options, (response) => {
+      console.log('Response = ', response);
+      if (response.didCancel) {
+        console.log('User cancelled photo picker');
+      } else if (response.errorCode) {
+        console.log('ImagePicker Error: ', response.errorCode);
+      } else if (response.uri) {
+        BackgroundUpload.startBackgroundUploadVideo(
+          'https://localhost/uploadUrl',
+          'https://localhost/metaDataUrl',
+          response.uri,
+          1024 * 1024 * 2.5,
+          null
+        );
+      }
+    });
+  };
 
   return (
     <View style={styles.container}>
-      <Text>Result: {result}</Text>
+      <TouchableOpacity style={styles.box} onPress={onPress}>
+        <Text>Pick video and Upload</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -23,9 +45,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  image: {
+    width: 200,
+    height: 200,
+    marginVertical: 30,
+  },
   box: {
-    width: 60,
-    height: 60,
-    marginVertical: 20,
+    padding: 16,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderRadius: 8,
+    borderColor: 'grey',
   },
 });

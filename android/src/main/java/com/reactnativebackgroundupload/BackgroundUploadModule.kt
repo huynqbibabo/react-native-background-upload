@@ -1,24 +1,46 @@
 package com.reactnativebackgroundupload
 
-import com.facebook.react.bridge.ReactApplicationContext
-import com.facebook.react.bridge.ReactContextBaseJavaModule
-import com.facebook.react.bridge.ReactMethod
-import com.facebook.react.bridge.Promise
+import android.annotation.SuppressLint
+import androidx.work.OneTimeWorkRequest
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import com.facebook.react.bridge.*
+import com.reactnativebackgroundupload.model.ModelRequestMetadata
+import com.reactnativebackgroundupload.model.ModelTranscodeInput
+import com.reactnativebackgroundupload.worker.CompressWorker
+import com.reactnativebackgroundupload.worker.RequestMetadataWorker
+import com.reactnativebackgroundupload.worker.SplitWorker
 
-class BackgroundUploadModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
+class BackgroundUploadModule(private val reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
+  override fun getName(): String {
+    return "BackgroundUpload"
+  }
 
-    override fun getName(): String {
-        return "BackgroundUpload"
-    }
+  @SuppressLint("EnqueueWork")
+  @ReactMethod
+  fun startBackgroundUploadVideo(uploadUrl: String, metadataUrl: String, filePath: String, chunkSize: Int, chainTask: ReadableMap?) {
+    NotificationHelpers(reactContext).createNotificationChannel()
+    val notificationId = System.currentTimeMillis().toInt()
 
-    // Example method
-    // See https://reactnative.dev/docs/native-modules-android
-    @ReactMethod
-    fun multiply(a: Int, b: Int, promise: Promise) {
-    
-      promise.resolve(a * b)
-    
-    }
-
-    
+    val workManager = WorkManager.getInstance(reactContext)
+    val compressRequest = OneTimeWorkRequestBuilder<CompressWorker>()
+      .setInputData(ModelTranscodeInput().createInputDataForCompress(filePath, chunkSize, uploadUrl, metadataUrl, notificationId))
+      .build()
+    var workContinuation = workManager.beginWith(compressRequest)
+    workContinuation = workContinuation.then(
+      OneTimeWorkRequest.from(SplitWorker::class.java)
+    )
+    //
+    val metadataRequest = OneTimeWorkRequestBuilder<RequestMetadataWorker>().apply {
+      if (chainTask != null) {
+        val url = chainTask.getString("url")
+        val method = chainTask.getString("method")
+        val authorization = chainTask.getString("authorization")
+        val data = chainTask.getString("data")
+        setInputData(ModelRequestMetadata().createInputDataForRequestTask(url, method, authorization, data))
+      }
+    }.build()
+    workContinuation = workContinuation.then(metadataRequest)
+    workContinuation.enqueue()
+  }
 }

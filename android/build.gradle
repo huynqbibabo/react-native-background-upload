@@ -8,7 +8,7 @@ buildscript {
   }
 
   dependencies {
-    classpath 'com.android.tools.build:gradle:3.2.1'
+    classpath 'com.android.tools.build:gradle:4.1.2'
     // noinspection DifferentKotlinGradleVersion
     classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
   }
@@ -29,13 +29,13 @@ android {
   compileSdkVersion getExtOrIntegerDefault('compileSdkVersion')
   buildToolsVersion getExtOrDefault('buildToolsVersion')
   defaultConfig {
-    minSdkVersion 16
+    minSdkVersion 21
     targetSdkVersion getExtOrIntegerDefault('targetSdkVersion')
     versionCode 1
     versionName "1.0"
-    
+
   }
-  
+
   buildTypes {
     release {
       minifyEnabled false
@@ -47,6 +47,9 @@ android {
   compileOptions {
     sourceCompatibility JavaVersion.VERSION_1_8
     targetCompatibility JavaVersion.VERSION_1_8
+  }
+  kotlinOptions {
+    jvmTarget = JavaVersion.VERSION_1_8.toString()
   }
 }
 
@@ -122,9 +125,39 @@ repositories {
 }
 
 def kotlin_version = getExtOrDefault('kotlinVersion')
+def work_version = getExtOrDefault('workerVersion')
 
 dependencies {
   // noinspection GradleDynamicVersion
   api 'com.facebook.react:react-native:+'
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+  implementation "com.android.support:support-compat:28.0.0"
+  implementation "androidx.concurrent:concurrent-futures-ktx:1.1.0"
+
+  // transcode video
+  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.1"
+  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.1"
+  implementation "com.googlecode.mp4parser:isoparser:1.0.6"
+
+  // networking
+  implementation 'com.amitshekhar.android:android-networking:1.0.2'
+
+  // work manager
+  // (Java only)
+  implementation "androidx.work:work-runtime:$work_version"
+
+  // Kotlin + coroutines
+  implementation "androidx.work:work-runtime-ktx:$work_version"
+
+  // optional - RxJava2 support
+//  implementation "androidx.work:work-rxjava2:$work_version"
+
+  // optional - GCMNetworkManager support
+  implementation "androidx.work:work-gcm:$work_version"
+
+  // optional - Test helpers
+//  androidTestImplementation "androidx.work:work-testing:$work_version"
+
+  // optional - Multiprocess support
+  implementation "androidx.work:work-multiprocess:$work_version"
 }
