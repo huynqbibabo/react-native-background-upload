@@ -1,6 +1,6 @@
 {
   "name": "@bibabovn/react-native-background-upload",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Background upload large file for react native app",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
