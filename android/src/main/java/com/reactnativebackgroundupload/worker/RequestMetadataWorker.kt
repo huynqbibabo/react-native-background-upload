@@ -7,10 +7,13 @@ import androidx.concurrent.futures.CallbackToFutureAdapter
 import androidx.work.*
 import com.androidnetworking.AndroidNetworking
 import com.androidnetworking.error.ANError
+import com.androidnetworking.interfaces.JSONObjectRequestListener
 import com.androidnetworking.interfaces.ParsedRequestListener
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.gson.Gson
 import com.reactnativebackgroundupload.NotificationHelpers
 import com.reactnativebackgroundupload.model.*
+import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 internal interface RequestMetadataCallback {
@@ -71,24 +74,42 @@ class RequestMetadataWorker(
     AndroidNetworking.post(metadataUrl).apply {
       addBodyParameter("cto", "$chunkSize")
       addBodyParameter("ext", "mp4")
-    }.build().getAsObject(ModelMetadataResponse::class.java, object : ParsedRequestListener<ModelMetadataResponse> {
-      override fun onResponse(response: ModelMetadataResponse) {
-        val metadata = response.data
-        if (metadata != null && response.status == "1") {
-          Log.d("METADATA:", "fileName: ${metadata.filename}")
-          Log.d("METADATA:", "url: ${metadata.url}")
-          startUploadWorker(metadata, uploadUrl, chunkPaths, chunkSize, notificationId, callback)
-        } else {
-          Log.wtf("METADATA:", "no metadata")
+    }.build()
+      .getAsJSONObject(object : JSONObjectRequestListener {
+        override fun onResponse(response: JSONObject?) {
+          Log.d("METADATA", "${Gson().fromJson(Gson().toJson(response), ModelMetadataResponse::class.java)}")
+          callback.success()
+        }
+        override fun onError(anError: ANError) {
+          Log.wtf("METADATA", "$anError")
+          if (anError.errorCode != 0) {
+            Log.d("METADATA", "onError errorCode : " + anError.errorCode)
+            Log.d("METADATA", "onError errorBody : " + anError.errorBody)
+            Log.d("METADATA", "onError errorDetail : " + anError.errorDetail)
+          } else {
+            Log.d("METADATA", "onError errorDetail : " + anError.errorDetail)
+          }
           callback.failure()
         }
-      }
-      override fun onError(error: ANError) {
-        // handle error
-        Log.wtf("METADATA:", "$error")
-        callback.failure()
-      }
-    })
+      })
+//    .getAsObject(ModelMetadataResponse::class.java, object : ParsedRequestListener<ModelMetadataResponse> {
+//      override fun onResponse(response: ModelMetadataResponse) {
+//        val metadata = response.data
+//        if (metadata != null && response.status == "1") {
+//          Log.d("METADATA:", "fileName: ${metadata.filename}")
+//          Log.d("METADATA:", "url: ${metadata.url}")
+//          startUploadWorker(metadata, uploadUrl, chunkPaths, chunkSize, notificationId, callback)
+//        } else {
+//          Log.wtf("METADATA:", "no metadata")
+//          callback.failure()
+//        }
+//      }
+//      override fun onError(error: ANError) {
+//        // handle error
+//        Log.wtf("METADATA:", "$error")
+//        callback.failure()
+//      }
+//    })
   }
 
   @SuppressLint("EnqueueWork")
