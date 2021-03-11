@@ -17,7 +17,7 @@ class NotificationHelpers(private val context: Context) {
 
   fun createNotificationChannel() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      val importance = NotificationManager.IMPORTANCE_HIGH
+      val importance = NotificationManager.IMPORTANCE_LOW
       val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, importance).apply {
         description = CHANNEL_NAME
       }
@@ -32,32 +32,33 @@ class NotificationHelpers(private val context: Context) {
     return NotificationCompat.Builder(context, CHANNEL_ID).apply {
       setContentTitle("Đang tải lên...")
       setContentText("$progress%")
-      setSmallIcon(android.R.drawable.stat_notify_sync)
+      setSmallIcon(android.R.drawable.ic_menu_upload)
       setOngoing(true)
       setProgress(100, progress, false)
       setDefaults(NotificationCompat.DEFAULT_ALL)
       setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-      priority = NotificationCompat.PRIORITY_DEFAULT
+      priority = NotificationCompat.PRIORITY_LOW
     }
   }
 
   fun getCompleteNotificationBuilder(): NotificationCompat.Builder {
     return NotificationCompat.Builder(context, CHANNEL_ID).apply {
       setContentTitle("Tải lên hoàn tất")
-      setContentText("Hoàn thành")
-      setSmallIcon(android.R.drawable.stat_notify_sync)
+      setSmallIcon(android.R.drawable.ic_menu_upload)
       setOngoing(false)
       setDefaults(NotificationCompat.DEFAULT_ALL)
       setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
       priority = NotificationCompat.PRIORITY_DEFAULT
     }
+//    setContentTitle("Tải lên hoàn tất")
+//    setContentText("Hoàn thành")
   }
 
   fun getFailureNotificationBuilder(): NotificationCompat.Builder {
     return NotificationCompat.Builder(context, CHANNEL_ID).apply {
       setContentTitle("Tải lên thất bại")
       setContentText("Vui lòng thử lại sau")
-      setSmallIcon(android.R.drawable.stat_notify_sync)
+      setSmallIcon(android.R.drawable.ic_menu_upload)
       setOngoing(false)
       setDefaults(NotificationCompat.DEFAULT_ALL)
       setVisibility(NotificationCompat.VISIBILITY_PUBLIC)

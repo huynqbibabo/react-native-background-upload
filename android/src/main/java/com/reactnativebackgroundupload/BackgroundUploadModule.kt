@@ -1,12 +1,15 @@
 package com.reactnativebackgroundupload
 
 import android.annotation.SuppressLint
+import android.net.Uri
 import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkContinuation
 import androidx.work.WorkManager
 import com.facebook.react.bridge.*
 import com.reactnativebackgroundupload.model.ModelRequestMetadata
 import com.reactnativebackgroundupload.model.ModelTranscodeInput
+import com.reactnativebackgroundupload.util.RealPathUtil
 import com.reactnativebackgroundupload.worker.CompressWorker
 import com.reactnativebackgroundupload.worker.RequestMetadataWorker
 import com.reactnativebackgroundupload.worker.SplitWorker
@@ -18,26 +21,42 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext) 
 
   @SuppressLint("EnqueueWork")
   @ReactMethod
-  fun startBackgroundUploadVideo(uploadUrl: String, metadataUrl: String, filePath: String, chunkSize: Int, chainTask: ReadableMap?) {
+  fun startBackgroundUploadVideo(uploadUrl: String, metadataUrl: String, filePath: String, chunkSize: Int, enableCompression: Boolean, chainTask: ReadableMap?) {
     NotificationHelpers(reactContext).createNotificationChannel()
-    val notificationId = System.currentTimeMillis().toInt()
+    val notificationId = System.currentTimeMillis().toInt()  // get unique notification id
+
+    // get file:// path
+    val realFilePath = RealPathUtil.getRealPath(reactContext, Uri.parse(filePath))
 
     val workManager = WorkManager.getInstance(reactContext)
-    val compressRequest = OneTimeWorkRequestBuilder<CompressWorker>()
-      .setInputData(ModelTranscodeInput().createInputDataForCompress(filePath, chunkSize, uploadUrl, metadataUrl, notificationId))
-      .build()
-    var workContinuation = workManager.beginWith(compressRequest)
-    workContinuation = workContinuation.then(
-      OneTimeWorkRequest.from(SplitWorker::class.java)
-    )
-    //
+    var workContinuation: WorkContinuation?
+    if (enableCompression) {
+      // setup worker for video compression
+      val compressRequest = OneTimeWorkRequestBuilder<CompressWorker>()
+        .setInputData(ModelTranscodeInput().createInputDataForTranscode(realFilePath, chunkSize, notificationId))
+        .build()
+      workContinuation = workManager.beginWith(compressRequest)
+      // add worker for split file to queue
+      workContinuation = workContinuation.then(
+        OneTimeWorkRequest.from(SplitWorker::class.java)
+      )
+    } else {
+      // setup worker for metadata request
+      val splitRequest = OneTimeWorkRequestBuilder<SplitWorker>()
+        .setInputData(ModelTranscodeInput().createInputDataForTranscode(realFilePath, chunkSize, notificationId))
+        .build()
+      workContinuation = workManager.beginWith(splitRequest)
+    }
+    // setup worker for metadata request
     val metadataRequest = OneTimeWorkRequestBuilder<RequestMetadataWorker>().apply {
       if (chainTask != null) {
-        val url = chainTask.getString("url")
+        val taskUrl = chainTask.getString("url")
         val method = chainTask.getString("method")
         val authorization = chainTask.getString("authorization")
         val data = chainTask.getString("data")
-        setInputData(ModelRequestMetadata().createInputDataForRequestTask(url, method, authorization, data))
+        setInputData(ModelRequestMetadata().createInputDataForRequestTask(notificationId, uploadUrl, metadataUrl, taskUrl, method, authorization, data))
+      } else {
+        setInputData(ModelRequestMetadata().createInputDataForUpload(notificationId, uploadUrl, metadataUrl))
       }
     }.build()
     workContinuation = workContinuation.then(metadataRequest)

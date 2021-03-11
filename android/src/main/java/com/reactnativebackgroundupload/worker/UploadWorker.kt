@@ -12,7 +12,6 @@ import com.androidnetworking.interfaces.ParsedRequestListener
 import com.androidnetworking.interfaces.UploadProgressListener
 import com.google.common.util.concurrent.ListenableFuture
 import com.reactnativebackgroundupload.NotificationHelpers
-import com.reactnativebackgroundupload.model.ModelClearNotification
 import com.reactnativebackgroundupload.model.ModelUploadInput
 import com.reactnativebackgroundupload.model.ModelUploadResponse
 import java.io.File

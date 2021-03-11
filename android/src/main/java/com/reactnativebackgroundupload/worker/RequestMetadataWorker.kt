@@ -11,6 +11,7 @@ import com.androidnetworking.interfaces.ParsedRequestListener
 import com.google.common.util.concurrent.ListenableFuture
 import com.reactnativebackgroundupload.NotificationHelpers
 import com.reactnativebackgroundupload.model.*
+import java.util.concurrent.TimeUnit
 
 internal interface RequestMetadataCallback {
   fun success()
@@ -26,9 +27,11 @@ class RequestMetadataWorker(
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
       val notificationId = inputData.getInt(ModelRequestMetadata.KEY_NOTIFICATION_ID, 1)
+      val chunkPaths = inputData.getStringArray(ModelRequestMetadata.KEY_CHUNK_PATH_ARRAY)!!
 
       val callback: RequestMetadataCallback = object : RequestMetadataCallback {
         override fun success() {
+          clearCache(chunkPaths)
           completer.set(Result.success())
         }
         override fun failure() {
@@ -36,6 +39,7 @@ class RequestMetadataWorker(
             notificationId,
             mNotificationHelpers.getFailureNotificationBuilder().build()
           )
+          clearCache(chunkPaths)
           completer.set(Result.failure())
         }
 //        override fun retry() {
@@ -48,10 +52,18 @@ class RequestMetadataWorker(
       }
       val uploadUrl = inputData.getString(ModelRequestMetadata.KEY_UPLOAD_URL)!!
       val metadataUrl = inputData.getString(ModelRequestMetadata.KEY_METADATA_URL)!!
-      val chunkPaths = inputData.getStringArray(ModelRequestMetadata.KEY_CHUNK_PATH_ARRAY)!!
       requestMetadata(metadataUrl, uploadUrl, chunkPaths, notificationId, callback)
       callback
     }
+  }
+
+  private fun clearCache(chunkPaths: Array<String>) {
+    val workManager = WorkManager.getInstance(applicationContext)
+    val clearCacheRequest = OneTimeWorkRequestBuilder<ClearCacheWorker>()
+      .setInputData(ModelClearCache().createInputDataForClearCache(chunkPaths))
+      .setInitialDelay(6, TimeUnit.HOURS)
+      .build()
+    workManager.enqueue(clearCacheRequest)
   }
 
   private fun requestMetadata(metadataUrl: String, uploadUrl: String, chunkPaths: Array<String>, notificationId: Int, callback: RequestMetadataCallback) {
@@ -108,9 +120,9 @@ class RequestMetadataWorker(
       val method = inputData.getString(ModelRequestMetadata.KEY_METHOD)
       val authorization = inputData.getString(ModelRequestMetadata.KEY_AUTHORIZATION)
       val chainData = inputData.getString(ModelRequestMetadata.KEY_DATA)
-      val clearRequest = OneTimeWorkRequestBuilder<ClearNotificationWorker>()
+      val clearRequest = OneTimeWorkRequestBuilder<ClearProcessWorker>()
         .setInputData(
-          ModelClearNotification().createInputDataForClearNotification(notificationId, fileName, url, method, authorization, chainData)
+          ModelClearTask().createInputDataForClearTask(notificationId, fileName, url, method, authorization, chainData)
         ).build()
       workContinuation = workContinuation?.then(clearRequest)
       workContinuation?.enqueue()

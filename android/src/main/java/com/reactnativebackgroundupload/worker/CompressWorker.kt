@@ -32,16 +32,13 @@ class CompressWorker(
       val notificationId = inputData.getInt(ModelTranscodeInput.KEY_NOTIFICATION_ID, 1)
       val chunkSize = inputData.getInt(ModelTranscodeInput.KEY_CHUNK_SIZE, ModelTranscodeInput.DEFAULT_CHUNK_SIZE)
       val filePath = inputData.getString(ModelTranscodeInput.KEY_FILE_PATH)
-      val uploadUrl = inputData.getString(ModelTranscodeInput.KEY_UPLOAD_URL)!!
-      val metadataUrl = inputData.getString(ModelTranscodeInput.KEY_METADATA_URL)!!
 
       val callback: CompressCallback = object : CompressCallback {
         override fun success(outputPath: String) {
           completer.set(Result.success(
-            ModelTranscodeInput().createInputDataForCompress(outputPath, chunkSize, uploadUrl, metadataUrl, notificationId)
+            ModelTranscodeInput().createInputDataForTranscode(outputPath, chunkSize, notificationId)
           ))
         }
-
         override fun failure() {
           mNotificationHelpers.startNotify(
             notificationId,
@@ -49,7 +46,6 @@ class CompressWorker(
           )
           completer.set(Result.failure())
         }
-
         override fun retry() {
           if (runAttemptCount > 2) {
             completer.set(Result.failure())
@@ -63,13 +59,11 @@ class CompressWorker(
     }
   }
 
-  private fun compressVideo(filePath: String?, notificationId: Int, callback: CompressCallback) {
-    if (filePath == null) {
+  private fun compressVideo(inputPath: String?, notificationId: Int, callback: CompressCallback) {
+    if (inputPath == null) {
       callback.failure()
     } else {
-      val inputPath = RealPathUtil.getRealPath(applicationContext, Uri.parse(filePath))
       val outputPath = "${applicationContext.getExternalFilesDir(null)}/${System.currentTimeMillis()}.mp4"
-
       VideoCompressor.start(
         inputPath,
         outputPath,
@@ -107,7 +101,7 @@ class CompressWorker(
             Log.d("COMPRESSION", "Compression cancelled")
             callback.failure()
           }
-        }, VideoQuality.MEDIUM, isMinBitRateEnabled = true, keepOriginalResolution = false)
+        }, VideoQuality.VERY_HIGH, isMinBitRateEnabled = true, keepOriginalResolution = true)
     }
   }
 }
