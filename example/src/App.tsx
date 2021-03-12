@@ -20,12 +20,19 @@ export default function App() {
         console.log('ImagePicker Error: ', response.errorCode);
       } else if (response.uri) {
         BackgroundUpload.startBackgroundUploadVideo(
-          'https://localhost/uploadUrl',
-          'https://localhost/metaDataUrl',
+          'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/partUpload',
+          'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/metadata',
           response.uri,
           1024 * 1024 * 2.5,
-          false,
-          null
+          true,
+          {
+            url: 'https://one.bibabo.vn/api/posts',
+            method: 'POST',
+            authorization:
+              'eyJDVCI6MCwiQ0kiOjEsIlVJIjo5MSwiU0UiOiIxNTc0MjUwMzY3MTk1NTY4MiJ9',
+            data:
+              '{"groupId":12,"topicId":[2026],"type":2,"desc":"Okie","contentType":3,"products":[],"tags":{"products":[],"users":[]},"backgroundId":0,"isSensitive":0,"isAnonymous":0}',
+          }
         );
       }
     });
