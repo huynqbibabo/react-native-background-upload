@@ -1,16 +1,21 @@
 package com.reactnativebackgroundupload.worker
 
-import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Build
 import android.util.Log
+import android.annotation.SuppressLint
+import androidx.annotation.RequiresApi
 import androidx.concurrent.futures.CallbackToFutureAdapter
 import androidx.work.*
 import com.androidnetworking.AndroidNetworking
 import com.androidnetworking.error.ANError
-import com.androidnetworking.interfaces.ParsedRequestListener
+import com.androidnetworking.interfaces.JSONObjectRequestListener
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.gson.Gson
 import com.reactnativebackgroundupload.NotificationHelpers
 import com.reactnativebackgroundupload.model.*
+import org.json.JSONException
+import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 internal interface RequestMetadataCallback {
@@ -43,7 +48,7 @@ class RequestMetadataWorker(
           completer.set(Result.failure())
         }
 //        override fun retry() {
-//          if (runAttemptCount > 2) {
+//          if (runAttemptCount > 1) {
 //            completer.set(Result.failure())
 //          } else {
 //            completer.set(Result.retry())
@@ -57,6 +62,7 @@ class RequestMetadataWorker(
     }
   }
 
+  @RequiresApi(Build.VERSION_CODES.GINGERBREAD)
   private fun clearCache(chunkPaths: Array<String>) {
     val workManager = WorkManager.getInstance(applicationContext)
     val clearCacheRequest = OneTimeWorkRequestBuilder<ClearCacheWorker>()
@@ -71,21 +77,34 @@ class RequestMetadataWorker(
     AndroidNetworking.post(metadataUrl).apply {
       addBodyParameter("cto", "$chunkSize")
       addBodyParameter("ext", "mp4")
-    }.build().getAsObject(ModelMetadataResponse::class.java, object : ParsedRequestListener<ModelMetadataResponse> {
-      override fun onResponse(response: ModelMetadataResponse) {
-        val metadata = response.data
-        if (metadata != null && response.status == "1") {
-          Log.d("METADATA:", "fileName: ${metadata.filename}")
-          Log.d("METADATA:", "url: ${metadata.url}")
-          startUploadWorker(metadata, uploadUrl, chunkPaths, chunkSize, notificationId, callback)
-        } else {
-          Log.wtf("METADATA:", "no metadata")
+    }.build().getAsJSONObject(object : JSONObjectRequestListener {
+      override fun onResponse(response: JSONObject?) {
+        try {
+          val metadata = response?.getJSONObject("data")
+          val status = response?.get("status")
+          if (metadata != null && status == 1) {
+            val gson = Gson()
+            val convertMetadata = gson.fromJson(metadata.toString(), VideoMetadata::class.java)
+            Log.d("METADATA", "${convertMetadata.hashes}")
+            startUploadWorker(convertMetadata, uploadUrl, chunkPaths, chunkSize, notificationId, callback)
+            callback.success()
+          } else {
+            Log.d("METADATA", "$response")
+            callback.failure()
+          }
+        } catch (e: JSONException) {
+          Log.e("METADATA", "JsonException", e)
           callback.failure()
         }
       }
-      override fun onError(error: ANError) {
-        // handle error
-        Log.wtf("METADATA:", "$error")
+      override fun onError(anError: ANError) {
+        if (anError.errorCode != 0) {
+          Log.e("METADATA", "onError errorCode : " + anError.errorCode)
+          Log.e("METADATA", "onError errorBody : " + anError.errorBody)
+          Log.e("METADATA", "onError errorDetail : " + anError.errorDetail)
+        } else {
+          Log.e("METADATA", "onError errorDetail : " + anError.errorDetail)
+        }
         callback.failure()
       }
     })
@@ -93,41 +112,47 @@ class RequestMetadataWorker(
 
   @SuppressLint("EnqueueWork")
   private fun startUploadWorker(data: VideoMetadata, uploadUrl: String, chunkPaths: Array<String>, chunkSize: Int, notificationId: Int, callback: RequestMetadataCallback) {
-    val fileName = data.filename
-    val hashMap = data.hashes
-    if (hashMap != null && fileName != null) {
-      // init work manager
-      val workManager = WorkManager.getInstance(applicationContext)
-      val workConstraints = Constraints.Builder()
-        .setRequiredNetworkType(NetworkType.CONNECTED) // constraints worker with network condition
-        .build()
-      var workContinuation: WorkContinuation? = null
+    try {
 
-      // add upload worker to queue
-      for ((key, value) in hashMap) {
-        val prt = key.toInt()
-        val uploadRequest = OneTimeWorkRequestBuilder<UploadWorker>().apply {
-          setConstraints(workConstraints)
-          setInputData(
-            ModelUploadInput().createInputDataForUpload(uploadUrl, fileName, chunkPaths[prt - 1], value, prt, chunkSize, notificationId)
-          )
-        }.build()
-        workContinuation = workContinuation?.then(uploadRequest)
-          ?: workManager.beginWith(uploadRequest)
+      val fileName = data.filename
+      val hashMap = data.hashes
+      if (hashMap != null && fileName != null) {
+        // init work manager
+        val workManager = WorkManager.getInstance(applicationContext)
+        val workConstraints = Constraints.Builder()
+          .setRequiredNetworkType(NetworkType.CONNECTED) // constraints worker with network condition
+          .build()
+        var workContinuation: WorkContinuation? = null
+
+        // add upload worker to queue
+        for ((key, value) in hashMap) {
+          val prt = key.toInt()
+          val uploadRequest = OneTimeWorkRequestBuilder<UploadWorker>().apply {
+            setConstraints(workConstraints)
+            setInputData(
+              ModelUploadInput().createInputDataForUpload(uploadUrl, fileName, chunkPaths[prt - 1], value, prt, chunkSize, notificationId)
+            )
+          }.build()
+          workContinuation = workContinuation?.then(uploadRequest)
+            ?: workManager.beginWith(uploadRequest)
+        }
+        // add clean up work
+        val url = inputData.getString(ModelRequestMetadata.KEY_CHAIN_URL)
+        val method = inputData.getString(ModelRequestMetadata.KEY_METHOD)
+        val authorization = inputData.getString(ModelRequestMetadata.KEY_AUTHORIZATION)
+        val chainData = inputData.getString(ModelRequestMetadata.KEY_DATA)
+        val clearRequest = OneTimeWorkRequestBuilder<ClearProcessWorker>()
+          .setInputData(
+            ModelClearTask().createInputDataForClearTask(notificationId, fileName, url, method, authorization, chainData)
+          ).build()
+        workContinuation = workContinuation?.then(clearRequest)
+        workContinuation?.enqueue()
+        callback.success()
+      } else {
+        callback.failure()
       }
-      // add clean up work
-      val url = inputData.getString(ModelRequestMetadata.KEY_CHAIN_URL)
-      val method = inputData.getString(ModelRequestMetadata.KEY_METHOD)
-      val authorization = inputData.getString(ModelRequestMetadata.KEY_AUTHORIZATION)
-      val chainData = inputData.getString(ModelRequestMetadata.KEY_DATA)
-      val clearRequest = OneTimeWorkRequestBuilder<ClearProcessWorker>()
-        .setInputData(
-          ModelClearTask().createInputDataForClearTask(notificationId, fileName, url, method, authorization, chainData)
-        ).build()
-      workContinuation = workContinuation?.then(clearRequest)
-      workContinuation?.enqueue()
-      callback.success()
-    } else {
+    } catch (e: Exception) {
+      Log.e("METADATA", "startUploadWorker", e)
       callback.failure()
     }
   }

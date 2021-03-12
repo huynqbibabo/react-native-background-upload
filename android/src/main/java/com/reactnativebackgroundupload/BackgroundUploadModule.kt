@@ -2,10 +2,7 @@ package com.reactnativebackgroundupload
 
 import android.annotation.SuppressLint
 import android.net.Uri
-import androidx.work.OneTimeWorkRequest
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkContinuation
-import androidx.work.WorkManager
+import androidx.work.*
 import com.facebook.react.bridge.*
 import com.reactnativebackgroundupload.model.ModelRequestMetadata
 import com.reactnativebackgroundupload.model.ModelTranscodeInput
@@ -48,6 +45,9 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext) 
       workContinuation = workManager.beginWith(splitRequest)
     }
     // setup worker for metadata request
+    val metadataConstraints = Constraints.Builder()
+      .setRequiredNetworkType(NetworkType.CONNECTED) // constraints worker with network condition
+      .build()
     val metadataRequest = OneTimeWorkRequestBuilder<RequestMetadataWorker>().apply {
       if (chainTask != null) {
         val taskUrl = chainTask.getString("url")
@@ -58,6 +58,7 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext) 
       } else {
         setInputData(ModelRequestMetadata().createInputDataForUpload(notificationId, uploadUrl, metadataUrl))
       }
+      setConstraints(metadataConstraints)
     }.build()
     workContinuation = workContinuation.then(metadataRequest)
     workContinuation.enqueue()
