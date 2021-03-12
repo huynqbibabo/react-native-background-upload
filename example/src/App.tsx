@@ -1,40 +1,60 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import BackgroundUpload from 'react-native-background-upload';
-import {
-  ImageLibraryOptions,
-  launchImageLibrary,
-} from 'react-native-image-picker';
+// import {
+//   ImageLibraryOptions,
+//   launchImageLibrary,
+// } from 'react-native-image-picker';
+import ImagePicker from 'react-native-image-crop-picker';
 
 export default function App() {
   const onPress = () => {
-    const options: ImageLibraryOptions = {
-      videoQuality: 'high',
+    // const options: ImageLibraryOptions = {
+    //   videoQuality: 'high',
+    //   mediaType: 'video',
+    // };
+    // launchImageLibrary(options, (response) => {
+    //   console.log('Response = ', response);
+    //   if (response.didCancel) {
+    //     console.log('User cancelled photo picker');
+    //   } else if (response.errorCode) {
+    //     console.log('ImagePicker Error: ', response.errorCode);
+    //   } else if (response.uri) {
+    //     BackgroundUpload.startBackgroundUploadVideo(
+    //       'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/partUpload',
+    //       'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/metadata',
+    //       response.uri,
+    //       1024 * 1024 * 2.5,
+    //       true,
+    //       {
+    //         url: 'https://one.bibabo.vn/api/posts',
+    //         method: 'POST',
+    //         authorization:
+    //           'eyJDVCI6MCwiQ0kiOjEsIlVJIjo5MSwiU0UiOiIxNTc0MjUwMzY3MTk1NTY4MiJ9',
+    //         data:
+    //           '{"groupId":12,"topicId":[2026],"type":2,"desc":"Okie","contentType":3,"products":[],"tags":{"products":[],"users":[]},"backgroundId":0,"isSensitive":0,"isAnonymous":0}',
+    //       }
+    //     );
+    //   }
+    // });
+    ImagePicker.openPicker({
       mediaType: 'video',
-    };
-    launchImageLibrary(options, (response) => {
-      console.log('Response = ', response);
-      if (response.didCancel) {
-        console.log('User cancelled photo picker');
-      } else if (response.errorCode) {
-        console.log('ImagePicker Error: ', response.errorCode);
-      } else if (response.uri) {
-        BackgroundUpload.startBackgroundUploadVideo(
-          'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/partUpload',
-          'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/metadata',
-          response.uri,
-          1024 * 1024 * 2.5,
-          true,
-          {
-            url: 'https://one.bibabo.vn/api/posts',
-            method: 'POST',
-            authorization:
-              'eyJDVCI6MCwiQ0kiOjEsIlVJIjo5MSwiU0UiOiIxNTc0MjUwMzY3MTk1NTY4MiJ9',
-            data:
-              '{"groupId":12,"topicId":[2026],"type":2,"desc":"Okie","contentType":3,"products":[],"tags":{"products":[],"users":[]},"backgroundId":0,"isSensitive":0,"isAnonymous":0}',
-          }
-        );
-      }
+    }).then((video) => {
+      BackgroundUpload.startBackgroundUploadVideo(
+        'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/partUpload',
+        'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/metadata',
+        video.sourceURL?.replace('file://', '')!,
+        1024 * 1024 * 2.5,
+        true,
+        {
+          url: 'https://one.bibabo.vn/api/posts',
+          method: 'POST',
+          authorization:
+            'eyJDVCI6MCwiQ0kiOjEsIlVJIjo5MSwiU0UiOiIxNTc0MjUwMzY3MTk1NTY4MiJ9',
+          data:
+            '{"groupId":12,"topicId":[2026],"type":2,"desc":"Okie","contentType":3,"products":[],"tags":{"products":[],"users":[]},"backgroundId":0,"isSensitive":0,"isAnonymous":0}',
+        }
+      );
     });
   };
 
