@@ -43,7 +43,8 @@ class NotificationHelpers(private val context: Context) {
 
   fun getCompleteNotificationBuilder(): NotificationCompat.Builder {
     return NotificationCompat.Builder(context, CHANNEL_ID).apply {
-      setContentTitle("Tải lên hoàn tất")
+      setContentTitle("Tải lên")
+      setContentText("Hoàn thành")
       setSmallIcon(android.R.drawable.ic_menu_upload)
       setOngoing(false)
       setDefaults(NotificationCompat.DEFAULT_ALL)

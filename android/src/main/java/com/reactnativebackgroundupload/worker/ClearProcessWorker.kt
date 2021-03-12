@@ -14,6 +14,11 @@ import com.reactnativebackgroundupload.model.ModelClearTask
 import org.json.JSONArray
 import org.json.JSONObject
 
+internal interface TaskCallback {
+  fun success()
+  fun failure()
+}
+
 class ClearProcessWorker(
   context: Context,
   params: WorkerParameters
@@ -22,9 +27,27 @@ class ClearProcessWorker(
 
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
+      val notificationId = inputData.getInt(ModelClearTask.KEY_NOTIFICATION_ID, 1)
+
+      val callback: TaskCallback = object : TaskCallback {
+        override fun success() {
+          mNotificationHelpers.startNotify(
+            notificationId,
+            mNotificationHelpers.getCompleteNotificationBuilder().build()
+          )
+          completer.set(Result.success())
+        }
+        override fun failure() {
+          mNotificationHelpers.startNotify(
+            notificationId,
+            mNotificationHelpers.getFailureNotificationBuilder().build()
+          )
+          completer.set(Result.failure())
+        }
+      }
+
       val url = inputData.getString(ModelClearTask.KEY_CHAIN_URL)
       val method = inputData.getString(ModelClearTask.KEY_METHOD)
-      val notificationId = inputData.getInt(ModelClearTask.KEY_NOTIFICATION_ID, 1)
 
       if (url != null && method != null) {
         val chainData = inputData.getString(ModelClearTask.KEY_DATA)
@@ -47,11 +70,7 @@ class ClearProcessWorker(
         }.build().getAsJSONObject(object : JSONObjectRequestListener {
           override fun onResponse(response: JSONObject?) {
             Log.d("CHAIN", "$response")
-            mNotificationHelpers.startNotify(
-              notificationId,
-              mNotificationHelpers.getCompleteNotificationBuilder().build()
-            )
-            completer.set(Result.success())
+            callback.success()
           }
           override fun onError(anError: ANError) {
             Log.wtf("CHAIN", "$anError")
@@ -62,17 +81,14 @@ class ClearProcessWorker(
             } else {
               Log.d("CHAIN", "onError errorDetail : " + anError.errorDetail)
             }
-            completer.set(Result.failure())
+            callback.failure()
           }
         })
       } else {
         Log.d("CHAIN", "success")
-        mNotificationHelpers.startNotify(
-          notificationId,
-          mNotificationHelpers.getCompleteNotificationBuilder().build()
-        )
-        completer.set(Result.success())
+        callback.success()
       }
+      callback
     }
   }
 }
