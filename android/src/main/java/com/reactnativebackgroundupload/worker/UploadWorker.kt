@@ -8,12 +8,13 @@ import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
 import com.androidnetworking.AndroidNetworking
 import com.androidnetworking.error.ANError
-import com.androidnetworking.interfaces.ParsedRequestListener
+import com.androidnetworking.interfaces.JSONObjectRequestListener
 import com.androidnetworking.interfaces.UploadProgressListener
 import com.google.common.util.concurrent.ListenableFuture
 import com.reactnativebackgroundupload.NotificationHelpers
 import com.reactnativebackgroundupload.model.ModelUploadInput
-import com.reactnativebackgroundupload.model.ModelUploadResponse
+import org.json.JSONException
+import org.json.JSONObject
 import java.io.File
 import kotlin.math.roundToInt
 
@@ -45,7 +46,7 @@ class UploadWorker(
           completer.set(Result.failure())
         }
         override fun retry() {
-          if (runAttemptCount > 2) {
+          if (runAttemptCount > 1) {
             completer.set(Result.failure())
           } else {
             completer.set(Result.retry())
@@ -83,19 +84,37 @@ class UploadWorker(
         mNotificationHelpers.getProgressNotificationBuilder(((progress + (prt - 1) * 100) / numberOfChunks).roundToInt()).build()
       )
     }
-    requestBuilder.getAsObject(ModelUploadResponse::class.java, object : ParsedRequestListener<ModelUploadResponse> {
-      override fun onResponse(response: ModelUploadResponse) {
-        val metadata = response.data
-        if (metadata != null && response.status == "1") {
-          callback.success()
-        } else {
-          Log.wtf("METADATA:", "no metadata")
+    requestBuilder.getAsJSONObject(object : JSONObjectRequestListener {
+      override fun onResponse(response: JSONObject?) {
+//        val metadata = response.data
+//        if (metadata != null && response.status == "1") {
+//          callback.success()
+//        } else {
+//          Log.wtf("METADATA:", "no metadata")
+//          callback.failure()
+//        }
+        try {
+          val metadata = response?.get("data")
+          val status = response?.get("status")
+          if (metadata != null && status == 1) {
+            callback.success()
+          } else {
+            Log.e("METADATA", "$response")
+            callback.failure()
+          }
+        } catch (e: JSONException) {
+          Log.e("UPLOAD", "JsonException", e)
           callback.failure()
         }
       }
-      override fun onError(error: ANError) {
-        // handle error
-        Log.wtf("UPLOAD:", "$error")
+      override fun onError(anError: ANError) {
+        if (anError.errorCode != 0) {
+          Log.e("METADATA", "onError errorCode : " + anError.errorCode)
+          Log.e("METADATA", "onError errorBody : " + anError.errorBody)
+          Log.e("METADATA", "onError errorDetail : " + anError.errorDetail)
+        } else {
+          Log.e("METADATA", "onError errorDetail : " + anError.errorDetail)
+        }
         callback.failure()
       }
     })
