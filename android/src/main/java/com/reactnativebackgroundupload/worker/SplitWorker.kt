@@ -27,6 +27,7 @@ class SplitWorker(
 
         val file = File(filePath)
         val result: MutableList<String> = ArrayList()
+        val currentTimeMillis = System.currentTimeMillis()
 
         // check whether to split video into chunks or not
         if (file.length().toInt() > chunkSize) {
@@ -35,10 +36,9 @@ class SplitWorker(
           val buffer = ByteArray(chunkSize) // create a buffer of bytes sized as the one chunk size
           val fis = FileInputStream(file)
           val bis = BufferedInputStream(fis)
-          val name = file.name
           var tmp = 0
           while (bis.read(buffer).also { tmp = it } > 0) {
-            val newFile = File(applicationContext.getExternalFilesDir(null), name + "." + String.format("%03d", partCounter++)) // naming files as <inputFileName>.001, <inputFileName>.002, ...
+            val newFile = File(applicationContext.getExternalFilesDir(null), "${currentTimeMillis}.${String.format("%03d", partCounter++)}") // naming files as <inputFileName>.001, <inputFileName>.002, ...
             val out = FileOutputStream(newFile)
             out.write(buffer, 0, tmp) //tmp is chunk size. Need it for the last chunk, which could be less then 1 mb.
             out.close()

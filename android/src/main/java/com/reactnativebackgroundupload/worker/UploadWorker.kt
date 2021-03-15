@@ -77,29 +77,22 @@ class UploadWorker(
       addMultipartParameter("prt", prt.toString())
     }.build()
     requestBuilder.uploadProgressListener = UploadProgressListener { bytesUploaded, totalBytes ->
-      val progress = (bytesUploaded * 100 / totalBytes).toDouble()
+      val percentage = (bytesUploaded * 100 / totalBytes).toDouble()
+      val progress = ((percentage + (prt - 1) * 100) / numberOfChunks).roundToInt()
 //      Log.d("UPLOAD", "progress: $progress")
-      mNotificationHelpers.startNotify(
-        notificationId,
-        mNotificationHelpers.getProgressNotificationBuilder(((progress + (prt - 1) * 100) / numberOfChunks).roundToInt()).build()
-      )
+      if (progress < 100 && progress % 5 == 0) {
+        mNotificationHelpers.startNotify(notificationId, mNotificationHelpers.getProgressNotificationBuilder(progress).build())
+      }
     }
     requestBuilder.getAsJSONObject(object : JSONObjectRequestListener {
-      override fun onResponse(response: JSONObject?) {
-//        val metadata = response.data
-//        if (metadata != null && response.status == "1") {
-//          callback.success()
-//        } else {
-//          Log.wtf("METADATA:", "no metadata")
-//          callback.failure()
-//        }
+      override fun onResponse(response: JSONObject?) {2
         try {
           val metadata = response?.get("data")
           val status = response?.get("status")
           if (metadata != null && status == 1) {
             callback.success()
           } else {
-            Log.e("METADATA", "$response")
+            Log.e("UPLOAD", "$response")
             callback.failure()
           }
         } catch (e: JSONException) {
@@ -109,11 +102,11 @@ class UploadWorker(
       }
       override fun onError(anError: ANError) {
         if (anError.errorCode != 0) {
-          Log.e("METADATA", "onError errorCode : " + anError.errorCode)
-          Log.e("METADATA", "onError errorBody : " + anError.errorBody)
-          Log.e("METADATA", "onError errorDetail : " + anError.errorDetail)
+          Log.e("UPLOAD", "onError errorCode : " + anError.errorCode)
+          Log.e("UPLOAD", "onError errorBody : " + anError.errorBody)
+          Log.e("UPLOAD", "onError errorDetail : " + anError.errorDetail)
         } else {
-          Log.e("METADATA", "onError errorDetail : " + anError.errorDetail)
+          Log.e("UPLOAD", "onError errorDetail : " + anError.errorDetail)
         }
         callback.failure()
       }
