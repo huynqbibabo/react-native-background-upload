@@ -39,6 +39,7 @@ class RequestMetadataWorker(
       val callback: RequestMetadataCallback = object : RequestMetadataCallback {
         override fun success() {
           clearCache(chunkPaths)
+          EventEmitter().onRequestMetadata(notificationId.toDouble())
           completer.set(Result.success())
         }
         override fun failure() {
@@ -87,7 +88,6 @@ class RequestMetadataWorker(
 
   private fun requestMetadata(metadataUrl: String, uploadUrl: String, chunkPaths: Array<String>, callback: RequestMetadataCallback) {
     val chunkSize = chunkPaths.size
-    EventEmitter().onRequestMetadata(notificationId.toDouble())
     AndroidNetworking.post(metadataUrl).apply {
       addBodyParameter("cto", "$chunkSize")
       addBodyParameter("ext", "mp4")

@@ -10,7 +10,7 @@ export default function App() {
   const uploadWorkId = React.useRef(0);
 
   React.useEffect(() => {
-    BackgroundUpload.onStart(({ workId }) => {
+    BackgroundUpload.onRequestMetadata(({ workId }) => {
       console.log('onStart', workId);
     });
     BackgroundUpload.onSuccess(({ workId }) => {
@@ -36,8 +36,10 @@ export default function App() {
       } else if (response.uri) {
         BackgroundUpload.startBackgroundUploadVideo(
           uploadWorkId.current,
-          'https://localhost/uploadUrl',
-          'https://localhost/metaDataUrl',
+          // 'https://localhost/uploadUrl',
+          // 'https://localhost/metaDataUrl',
+          'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/partUpload',
+          'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/metadata',
           response.uri,
           1024 * 1024 * 2.5,
           true,

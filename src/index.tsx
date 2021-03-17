@@ -45,7 +45,7 @@ class RNBackgroundUpload {
   };
 
   onStart = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
-    BackgroundUploadEmitter.addListener('onVoiceEnd', fn);
+    BackgroundUploadEmitter.addListener('onStart', fn);
 
   onTranscode = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
     BackgroundUploadEmitter.addListener('onTranscode', fn);

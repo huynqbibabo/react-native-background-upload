@@ -36,7 +36,7 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext) 
     NotificationHelpers(reactContext).createNotificationChannel()
     val notificationId = workId.roundToInt()  // get unique notification id
     val workTag = workId.toString() // get unique work tag
-    Log.d("BACKGROUND_UPLOAD", "stop: $workId")
+    Log.d("BACKGROUND_UPLOAD", "start: $workId")
 
     // get file:// path
     val realFilePath = RealPathUtil.getRealPath(reactContext, Uri.parse(filePath))
