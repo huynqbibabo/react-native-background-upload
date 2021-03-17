@@ -9,6 +9,7 @@ import com.androidnetworking.AndroidNetworking
 import com.androidnetworking.error.ANError
 import com.androidnetworking.interfaces.JSONObjectRequestListener
 import com.google.common.util.concurrent.ListenableFuture
+import com.reactnativebackgroundupload.EventEmitter
 import com.reactnativebackgroundupload.NotificationHelpers
 import com.reactnativebackgroundupload.model.ModelClearTask
 import org.json.JSONArray
@@ -24,13 +25,13 @@ class ClearProcessWorker(
   params: WorkerParameters
 ) : ListenableWorker(context, params) {
   private val mNotificationHelpers = NotificationHelpers(applicationContext)
+  val notificationId = inputData.getInt(ModelClearTask.KEY_NOTIFICATION_ID, 1)
 
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
-      val notificationId = inputData.getInt(ModelClearTask.KEY_NOTIFICATION_ID, 1)
-
       val callback: TaskCallback = object : TaskCallback {
         override fun success() {
+          EventEmitter().onSuccess(notificationId.toDouble())
           mNotificationHelpers.startNotify(
             notificationId,
             mNotificationHelpers.getCompleteNotificationBuilder().build()
@@ -59,12 +60,9 @@ class ClearProcessWorker(
             addHeaders("Authorization", authorization)
           }
           if (chainData != null) {
-            val videoObject = JSONObject()
-            videoObject.put("name", fileName)
-            val videoArray = JSONArray()
-            videoArray.put(videoObject)
-            val chainDataObject = JSONObject(chainData)
-            chainDataObject.put("videos", videoArray)
+            val videoObject = JSONObject().put("name", fileName)
+            val videoArray = JSONArray().put(videoObject)
+            val chainDataObject = JSONObject(chainData).put("videos", videoArray)
             addJSONObjectBody(chainDataObject)
           }
         }.build().getAsJSONObject(object : JSONObjectRequestListener {
@@ -85,10 +83,18 @@ class ClearProcessWorker(
           }
         })
       } else {
-        Log.d("CHAIN", "success")
+        Log.d("CHAIN", "complete with no chain task")
         callback.success()
       }
       callback
     }
+  }
+
+  override fun onStopped() {
+//    mNotificationHelpers.startNotify(
+//      notificationId,
+//      mNotificationHelpers.getFailureNotificationBuilder().build()
+//    )
+    Log.d("METADATA", "stop")
   }
 }

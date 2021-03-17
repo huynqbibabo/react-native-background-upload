@@ -29,10 +29,10 @@ class UploadWorker(
   params: WorkerParameters
 ) : ListenableWorker(context, params) {
   private val mNotificationHelpers = NotificationHelpers(applicationContext)
+  private val notificationId = inputData.getInt(ModelUploadInput.KEY_NOTIFICATION_ID, 1)
 
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
-      val notificationId = inputData.getInt(ModelUploadInput.KEY_NOTIFICATION_ID, 1)
 
       val callback: UploadCallback = object : UploadCallback {
         override fun success() {
@@ -61,13 +61,21 @@ class UploadWorker(
       val prt = inputData.getInt(ModelUploadInput.KEY_PRT, 0)
       val numberOfChunks = inputData.getInt(ModelUploadInput.KEY_NUMBER_OF_CHUNKS, 1)
 
-      uploadVideo(requestUrl, fileName, filePath, hash, prt, numberOfChunks, notificationId, callback)
+      uploadVideo(requestUrl, fileName, filePath, hash, prt, numberOfChunks, callback)
       callback
     }
   }
 
+  override fun onStopped() {
+//    mNotificationHelpers.startNotify(
+//      notificationId,
+//      mNotificationHelpers.getFailureNotificationBuilder().build()
+//    )
+    Log.d("METADATA", "stop")
+  }
+
   @SuppressLint("CheckResult")
-  private fun uploadVideo(requestUrl: String, fileName: String, filePath: String, hash: String, prt: Int, numberOfChunks: Int, notificationId: Int, callback: UploadCallback) {
+  private fun uploadVideo(requestUrl: String, fileName: String, filePath: String, hash: String, prt: Int, numberOfChunks: Int, callback: UploadCallback) {
     val file = File(filePath)
 
     val requestBuilder = AndroidNetworking.upload(requestUrl).apply {
@@ -80,12 +88,12 @@ class UploadWorker(
       val percentage = (bytesUploaded * 100 / totalBytes).toDouble()
       val progress = ((percentage + (prt - 1) * 100) / numberOfChunks).roundToInt()
 //      Log.d("UPLOAD", "progress: $progress")
-      if (progress < 100 && progress % 5 == 0) {
+      if (progress <= 100 && progress % 5 == 0) {
         mNotificationHelpers.startNotify(notificationId, mNotificationHelpers.getProgressNotificationBuilder(progress).build())
       }
     }
     requestBuilder.getAsJSONObject(object : JSONObjectRequestListener {
-      override fun onResponse(response: JSONObject?) {2
+      override fun onResponse(response: JSONObject?) {
         try {
           val metadata = response?.get("data")
           val status = response?.get("status")

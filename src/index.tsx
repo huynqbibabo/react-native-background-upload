@@ -1,4 +1,12 @@
-import { NativeModules } from 'react-native';
+import {
+  EmitterSubscription,
+  NativeModules,
+  NativeEventEmitter,
+} from 'react-native';
+
+type WorkerSubscription = {
+  workId: number;
+};
 
 type NetworkTask = {
   url: string;
@@ -8,17 +16,64 @@ type NetworkTask = {
   data?: string;
 };
 
-type BackgroundUploadType = {
-  startBackgroundUploadVideo(
+const BackgroundUploadModule = NativeModules.BackgroundUpload;
+const BackgroundUploadEmitter = new NativeEventEmitter(BackgroundUploadModule);
+
+class RNBackgroundUpload {
+  startBackgroundUploadVideo = (
+    key: number,
     uploadUrl: string,
     metadataUrl: string,
     filePath: string,
     chunkSize: number,
     enableCompression: boolean,
     chainTask: NetworkTask | null
-  ): void;
-};
+  ): void => {
+    BackgroundUploadModule.startBackgroundUploadVideo(
+      key,
+      uploadUrl,
+      metadataUrl,
+      filePath,
+      chunkSize,
+      enableCompression,
+      chainTask
+    );
+  };
 
-const { BackgroundUpload } = NativeModules;
+  stopBackgroundUpload = (workId: number): void => {
+    BackgroundUploadModule.stopBackgroundUpload(workId);
+  };
 
-export default BackgroundUpload as BackgroundUploadType;
+  onStart = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
+    BackgroundUploadEmitter.addListener('onVoiceEnd', fn);
+
+  onTranscode = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
+    BackgroundUploadEmitter.addListener('onTranscode', fn);
+
+  onSplit = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
+    BackgroundUploadEmitter.addListener('onSplit', fn);
+
+  onRequestMetadata = (
+    fn: (e: WorkerSubscription) => void
+  ): EmitterSubscription =>
+    BackgroundUploadEmitter.addListener('onRequestMetadata', fn);
+
+  onUpload = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
+    BackgroundUploadEmitter.addListener('onUpload', fn);
+
+  onChainTasks = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
+    BackgroundUploadEmitter.addListener('onChainTasks', fn);
+
+  onSuccess = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
+    BackgroundUploadEmitter.addListener('onSuccess', fn);
+
+  onFailure = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
+    BackgroundUploadEmitter.addListener('onFailure', fn);
+
+  onCancelled = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
+    BackgroundUploadEmitter.addListener('onCancelled', fn);
+}
+
+const BackgroundUpload = new RNBackgroundUpload();
+
+export default BackgroundUpload;

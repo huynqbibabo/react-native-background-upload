@@ -15,10 +15,20 @@ class SplitWorker(
   context: Context,
   params: WorkerParameters
 ) : ListenableWorker(context, params) {
+  private val mNotificationHelpers = NotificationHelpers(applicationContext)
+  private val notificationId = inputData.getInt(ModelTranscodeInput.KEY_NOTIFICATION_ID, 1)
+
+  override fun onStopped() {
+//    mNotificationHelpers.startNotify(
+//      notificationId,
+//      mNotificationHelpers.getFailureNotificationBuilder().build()
+//    )
+    Log.d("METADATA", "stop")
+  }
+
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
       try {
-        val notificationId = inputData.getInt(ModelTranscodeInput.KEY_NOTIFICATION_ID, 1)
         val chunkSize = inputData.getInt(ModelTranscodeInput.KEY_CHUNK_SIZE, ModelTranscodeInput.DEFAULT_CHUNK_SIZE)
         val filePath = inputData.getString(ModelTranscodeInput.KEY_FILE_PATH)!!
 
@@ -55,6 +65,10 @@ class SplitWorker(
         ))
       } catch (e: IOException) {
         Log.e("SPLIT", "IOException", e)
+        mNotificationHelpers.startNotify(
+          notificationId,
+          mNotificationHelpers.getFailureNotificationBuilder().build()
+        )
         completer.set(Result.failure())
       }
     }

@@ -26,10 +26,18 @@ class CompressWorker(
   params: WorkerParameters
 ) : ListenableWorker(context, params) {
   private val mNotificationHelpers = NotificationHelpers(applicationContext)
+  private val notificationId = inputData.getInt(ModelTranscodeInput.KEY_NOTIFICATION_ID, 1)
+
+  override fun onStopped() {
+//    mNotificationHelpers.startNotify(
+//      notificationId,
+//      mNotificationHelpers.getFailureNotificationBuilder().build()
+//    )
+    Log.d("METADATA", "stop")
+  }
 
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
-      val notificationId = inputData.getInt(ModelTranscodeInput.KEY_NOTIFICATION_ID, 1)
       val chunkSize = inputData.getInt(ModelTranscodeInput.KEY_CHUNK_SIZE, ModelTranscodeInput.DEFAULT_CHUNK_SIZE)
       val filePath = inputData.getString(ModelTranscodeInput.KEY_FILE_PATH)
 
@@ -101,7 +109,7 @@ class CompressWorker(
             Log.d("COMPRESSION", "Compression cancelled")
             callback.failure()
           }
-        }, VideoQuality.VERY_HIGH, isMinBitRateEnabled = true, keepOriginalResolution = true)
+        }, VideoQuality.VERY_HIGH, isMinBitRateEnabled = true, keepOriginalResolution = false)
     }
   }
 }
