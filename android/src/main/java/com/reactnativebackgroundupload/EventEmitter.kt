@@ -6,8 +6,10 @@ import com.facebook.react.bridge.WritableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
 
 class EventEmitter {
-  private var reactContext: ReactApplicationContext? = null
-  private var stateMap = HashMap<Int, String>()
+  companion object {
+    var reactContext: ReactApplicationContext? = null
+    var stateMap = HashMap<Int, String>()
+  }
 
   object EVENT {
     const val onStateChange = "onStateChange"

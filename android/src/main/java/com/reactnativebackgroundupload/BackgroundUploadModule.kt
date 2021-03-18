@@ -42,10 +42,9 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext) 
   @SuppressLint("EnqueueWork")
   @ReactMethod
   fun startBackgroundUploadVideo(channelId: Double, uploadUrl: String, metadataUrl: String, filePath: String, chunkSize: Int, enableCompression: Boolean, chainTask: ReadableMap?, promise: Promise) {
-    // set up event emitter
-    EventEmitter().setReactContext(reactContext)
-//    EventEmitter().onStart(workId)
     try {
+      // set up event emitter
+      EventEmitter().setReactContext(reactContext)
       // set up notification and work tag
       NotificationHelpers(reactContext).createNotificationChannel()
 

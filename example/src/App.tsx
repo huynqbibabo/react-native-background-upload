@@ -11,8 +11,17 @@ export default function App() {
   const uploadWorkId = React.useRef(0);
 
   React.useEffect(() => {
-    BackgroundUpload.onStateChange((e) => {
-      console.log(e);
+    BackgroundUpload.onStateChange((response) => {
+      console.log('onStateChange: ', response);
+    });
+    BackgroundUpload.onRequestMetadata((response) => {
+      console.log('onRequestMetadata: ', response);
+    });
+    BackgroundUpload.onUploading((response) => {
+      console.log('onUploading: ', response);
+    });
+    BackgroundUpload.onTranscoding((response) => {
+      console.log('onTranscoding: ', response);
     });
   }, []);
 
@@ -30,10 +39,8 @@ export default function App() {
       } else if (response.uri) {
         BackgroundUpload.startBackgroundUploadVideo(
           uploadChannelId,
-          // 'https://localhost/uploadUrl',
-          // 'https://localhost/metaDataUrl',
-          'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/partUpload',
-          'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/metadata',
+          'https://localhost/uploadUrl',
+          'https://localhost/metaDataUrl',
           response.uri,
           1024 * 1024 * 2.5,
           true,
