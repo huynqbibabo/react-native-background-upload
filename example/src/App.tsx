@@ -7,22 +7,16 @@ import {
 } from 'react-native-image-picker';
 
 export default function App() {
+  const uploadChannelId = 1;
   const uploadWorkId = React.useRef(0);
 
   React.useEffect(() => {
-    BackgroundUpload.onRequestMetadata(({ workId }) => {
-      console.log('onStart', workId);
-    });
-    BackgroundUpload.onSuccess(({ workId }) => {
-      console.log('onSuccess', workId);
-    });
-    BackgroundUpload.onFailure(({ workId }) => {
-      console.log('onFailure', workId);
+    BackgroundUpload.onStateChange((e) => {
+      console.log(e);
     });
   }, []);
 
   const onPressStart = () => {
-    uploadWorkId.current = Date.now();
     const options: ImageLibraryOptions = {
       videoQuality: 'high',
       mediaType: 'video',
@@ -35,7 +29,7 @@ export default function App() {
         console.log('ImagePicker Error: ', response.errorCode);
       } else if (response.uri) {
         BackgroundUpload.startBackgroundUploadVideo(
-          uploadWorkId.current,
+          uploadChannelId,
           // 'https://localhost/uploadUrl',
           // 'https://localhost/metaDataUrl',
           'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/partUpload',
@@ -44,13 +38,25 @@ export default function App() {
           1024 * 1024 * 2.5,
           true,
           null
-        );
+        ).then((workId: number) => {
+          console.log('workId', workId);
+          uploadWorkId.current = workId;
+        });
       }
     });
   };
 
   const onPressStop = (): void => {
-    BackgroundUpload.stopBackgroundUpload(uploadWorkId.current);
+    BackgroundUpload.stopBackgroundUpload(uploadChannelId);
+  };
+
+  const onPressState = (): void => {
+    BackgroundUpload.getCurrentState(
+      uploadChannelId,
+      uploadWorkId.current
+    ).then((state) => {
+      console.log(state);
+    });
   };
 
   return (
@@ -60,6 +66,9 @@ export default function App() {
       </TouchableOpacity>
       <TouchableOpacity style={styles.box} onPress={onPressStop}>
         <Text>Stop Upload</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.box} onPress={onPressState}>
+        <Text>Get current state</Text>
       </TouchableOpacity>
     </View>
   );

@@ -6,17 +6,31 @@ import com.facebook.react.bridge.WritableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
 
 class EventEmitter {
-  companion object {
-    private var reactContext: ReactApplicationContext? = null
-    const val onStart = "onStart"
-    const val onTranscode = "onTranscode"
-    const val onSplit = "onSplit"
+  private var reactContext: ReactApplicationContext? = null
+  private var stateMap = HashMap<Int, String>()
+
+  object EVENT {
+    const val onStateChange = "onStateChange"
+    const val onTranscoding = "onTranscoding"
     const val onRequestMetadata = "onRequestMetadata"
-    const val onUpload = "onUpload"
-    const val onChainTasks = "onChainTasks"
+    const val onUploading = "onUploading"
+    const val onChainTask = "onChainTask"
     const val onSuccess = "onSuccess"
     const val onFailure = "onFailure"
     const val onCancelled = "onCancelled"
+  }
+
+  object STATE {
+    const val IDLE = "idle"
+    const val TRANSCODE = "transcoding"
+    const val SPLIT = "splitting"
+    const val REQUEST_METADATA = "requestMetadata"
+    const val UPLOAD = "uploading"
+    const val CHAIN_TASK = "chainTaskProcessing"
+    const val SUCCESS = "success"
+    const val FAILED = "failed"
+    const val RETRY = "retry"
+    const val CANCELLED = "cancelled"
   }
 
   private fun sendJSEvent(
@@ -32,57 +46,77 @@ class EventEmitter {
     reactContext = context
   }
 
-  fun onStart(workId: Double) {
-    val params = Arguments.createMap()
-    params.putDouble("workId", workId)
-    sendJSEvent(onStart, params)
+  fun getCurrentState(channelId: Double, workId: Int): String? {
+    return stateMap[workId]
   }
 
-  fun onTranscode(workId: Double) {
+  fun onStateChange(channelId: Double, workId: Int, state: String) {
+    stateMap[workId] = state
     val params = Arguments.createMap()
-    params.putDouble("workId", workId)
-    sendJSEvent(onTranscode, params)
+    params.putDouble("channelId", channelId)
+    params.putInt("workId", workId)
+    params.putString("state", state)
+    sendJSEvent(EVENT.onStateChange, params)
+    when (state) {
+      STATE.SUCCESS -> onSuccess(channelId, workId)
+      STATE.CANCELLED -> onCancelled(channelId, workId)
+      STATE.FAILED -> onFailure(channelId, workId)
+    }
   }
 
-  fun onSplit(workId: Double) {
+  fun onTranscoding(channelId: Double, workId: Int, progress: Int, status: String) {
     val params = Arguments.createMap()
-    params.putDouble("workId", workId)
-    sendJSEvent(onSplit, params)
+    params.putDouble("channelId", channelId)
+    params.putInt("workId", workId)
+    params.putInt("progress", progress)
+    params.putString("status", status)
+    sendJSEvent(EVENT.onTranscoding, params)
   }
 
-  fun onUpload(workId: Double) {
+  fun onRequestMetadata(channelId: Double, workId: Int, status: String, response: String) {
     val params = Arguments.createMap()
-    params.putDouble("workId", workId)
-    sendJSEvent(onUpload, params)
+    params.putDouble("channelId", channelId)
+    params.putInt("workId", workId)
+    params.putString("status", status)
+    params.putString("response", response)
+    sendJSEvent(EVENT.onRequestMetadata, params)
   }
 
-  fun onRequestMetadata(workId: Double) {
+  fun onUpload(channelId: Double, workId: Int, status: String, progress: Int, response: String) {
     val params = Arguments.createMap()
-    params.putDouble("workId", workId)
-    sendJSEvent(onRequestMetadata, params)
+    params.putDouble("channelId", channelId)
+    params.putInt("workId", workId)
+    params.putInt("progress", progress)
+    params.putString("status", status)
+    params.putString("response", response)
+    sendJSEvent(EVENT.onUploading, params)
   }
 
-  fun onChainTasks(workId: Double) {
+  fun onChainTask(channelId: Double, workId: Int, status: String, response: String) {
     val params = Arguments.createMap()
-    params.putDouble("workId", workId)
-    sendJSEvent(onChainTasks, params)
+    params.putDouble("channelId", channelId)
+    params.putInt("workId", workId)
+    sendJSEvent(EVENT.onChainTask, params)
   }
 
-  fun onSuccess(workId: Double) {
+  private fun onSuccess(channelId: Double, workId: Int) {
     val params = Arguments.createMap()
-    params.putDouble("workId", workId)
-    sendJSEvent(onSuccess, params)
+    params.putDouble("channelId", channelId)
+    params.putInt("workId", workId)
+    sendJSEvent(EVENT.onSuccess, params)
   }
 
-  fun onFailure(workId: Double) {
+  private fun onFailure(channelId: Double, workId: Int, ) {
     val params = Arguments.createMap()
-    params.putDouble("workId", workId)
-    sendJSEvent(onFailure, params)
+    params.putDouble("channelId", channelId)
+    params.putInt("workId", workId)
+    sendJSEvent(EVENT.onFailure, params)
   }
 
-  fun onCancelled(workId: Double) {
+  private fun onCancelled(channelId: Double, workId: Int) {
     val params = Arguments.createMap()
-    params.putDouble("workId", workId)
-    sendJSEvent(onCancelled, params)
+    params.putDouble("channelId", channelId)
+    params.putInt("workId", workId)
+    sendJSEvent(EVENT.onCancelled, params)
   }
 }

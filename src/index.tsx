@@ -4,11 +4,23 @@ import {
   NativeEventEmitter,
 } from 'react-native';
 
-type WorkerSubscription = {
+export type WorkerSubscription = {
+  channelId: number;
   workId: number;
+  state: string;
 };
 
-type NetworkTask = {
+export type WorkerProgress = Omit<WorkerSubscription, 'state'> & {
+  progress?: number;
+  response?: string;
+  status: string;
+};
+
+export type WorkerResponse = Omit<WorkerProgress, 'progress'> & {
+  response: string;
+};
+
+export type NetworkTask = {
   url: string;
   method: 'GET' | 'POST';
   // headers?: { [key: string]: string };
@@ -16,21 +28,44 @@ type NetworkTask = {
   data?: string;
 };
 
+const STATE = {
+  IDLE: 'idle',
+  TRANSCODE: 'transcoding',
+  SPLIT: 'splitting',
+  REQUEST_METADATA: 'requestMetadata',
+  UPLOAD: 'uploading',
+  CHAIN_TASK: 'chainTaskProcessing',
+  SUCCESS: 'success',
+  FAILED: 'failed',
+  CANCELLED: 'cancelled',
+};
+
+const EVENT = {
+  onStateChange: 'onStateChange',
+  onTranscoding: 'onTranscoding',
+  onRequestMetadata: 'onRequestMetadata',
+  onUploading: 'onUploading',
+  onChainTask: 'onChainTask',
+  onSuccess: 'onSuccess',
+  onFailure: 'onFailure',
+  onCancelled: 'onCancelled',
+};
+
 const BackgroundUploadModule = NativeModules.BackgroundUpload;
 const BackgroundUploadEmitter = new NativeEventEmitter(BackgroundUploadModule);
 
 class RNBackgroundUpload {
-  startBackgroundUploadVideo = (
-    key: number,
+  startBackgroundUploadVideo = async (
+    channelId: number,
     uploadUrl: string,
     metadataUrl: string,
     filePath: string,
     chunkSize: number,
     enableCompression: boolean,
     chainTask: NetworkTask | null
-  ): void => {
-    BackgroundUploadModule.startBackgroundUploadVideo(
-      key,
+  ): Promise<number> => {
+    return await BackgroundUploadModule.startBackgroundUploadVideo(
+      channelId,
       uploadUrl,
       metadataUrl,
       filePath,
@@ -40,40 +75,43 @@ class RNBackgroundUpload {
     );
   };
 
-  stopBackgroundUpload = (workId: number): void => {
-    BackgroundUploadModule.stopBackgroundUpload(workId);
+  stopBackgroundUpload = async (workId: number): Promise<void> => {
+    return await BackgroundUploadModule.stopBackgroundUpload(workId);
   };
 
-  onStart = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
-    BackgroundUploadEmitter.addListener('onStart', fn);
+  getCurrentState = async (
+    channelId: number,
+    workId: number
+  ): Promise<string> => {
+    return await BackgroundUploadModule.getCurrentState(channelId, workId);
+  };
 
-  onTranscode = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
-    BackgroundUploadEmitter.addListener('onTranscode', fn);
+  onStateChange = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
+    BackgroundUploadEmitter.addListener(EVENT.onStateChange, fn);
 
-  onSplit = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
-    BackgroundUploadEmitter.addListener('onSplit', fn);
+  onTranscoding = (fn: (e: WorkerProgress) => void): EmitterSubscription =>
+    BackgroundUploadEmitter.addListener(EVENT.onTranscoding, fn);
 
-  onRequestMetadata = (
-    fn: (e: WorkerSubscription) => void
-  ): EmitterSubscription =>
-    BackgroundUploadEmitter.addListener('onRequestMetadata', fn);
+  onRequestMetadata = (fn: (e: WorkerResponse) => void): EmitterSubscription =>
+    BackgroundUploadEmitter.addListener(EVENT.onRequestMetadata, fn);
 
-  onUpload = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
-    BackgroundUploadEmitter.addListener('onUpload', fn);
+  onUploading = (fn: (e: WorkerProgress) => void): EmitterSubscription =>
+    BackgroundUploadEmitter.addListener(EVENT.onUploading, fn);
 
   onChainTasks = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
-    BackgroundUploadEmitter.addListener('onChainTasks', fn);
+    BackgroundUploadEmitter.addListener(EVENT.onChainTask, fn);
 
   onSuccess = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
-    BackgroundUploadEmitter.addListener('onSuccess', fn);
+    BackgroundUploadEmitter.addListener(EVENT.onSuccess, fn);
 
   onFailure = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
-    BackgroundUploadEmitter.addListener('onFailure', fn);
+    BackgroundUploadEmitter.addListener(EVENT.onFailure, fn);
 
   onCancelled = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
-    BackgroundUploadEmitter.addListener('onCancelled', fn);
+    BackgroundUploadEmitter.addListener(EVENT.onCancelled, fn);
 }
 
 const BackgroundUpload = new RNBackgroundUpload();
 
+export { STATE, EVENT };
 export default BackgroundUpload;
