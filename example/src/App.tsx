@@ -14,14 +14,17 @@ export default function App() {
     BackgroundUpload.onStateChange((response) => {
       console.log('onStateChange: ', response);
     });
-    BackgroundUpload.onRequestMetadata((response) => {
-      console.log('onRequestMetadata: ', response);
-    });
-    BackgroundUpload.onUploading((response) => {
-      console.log('onUploading: ', response);
-    });
-    BackgroundUpload.onTranscoding((response) => {
-      console.log('onTranscoding: ', response);
+    // BackgroundUpload.onRequestMetadata((response) => {
+    //   console.log('onRequestMetadata: ', response);
+    // });
+    // BackgroundUpload.onUploading((response) => {
+    //   console.log('onUploading: ', response);
+    // });
+    // BackgroundUpload.onTranscoding((response) => {
+    //   console.log('onTranscoding: ', response);
+    // });
+    BackgroundUpload.onCancelled((response) => {
+      console.log('onCancelled: ', response);
     });
   }, []);
 
@@ -39,8 +42,10 @@ export default function App() {
       } else if (response.uri) {
         BackgroundUpload.startBackgroundUploadVideo(
           uploadChannelId,
-          'https://localhost/uploadUrl',
-          'https://localhost/metaDataUrl',
+          // 'https://localhost/uploadUrl',
+          // 'https://localhost/metaDataUrl',
+          'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/partUpload',
+          'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/metadata',
           response.uri,
           1024 * 1024 * 2.5,
           true,
@@ -54,7 +59,7 @@ export default function App() {
   };
 
   const onPressStop = (): void => {
-    BackgroundUpload.stopBackgroundUpload(uploadChannelId);
+    BackgroundUpload.stopBackgroundUpload(uploadWorkId.current.toString());
   };
 
   const onPressState = (): void => {

@@ -3,30 +3,17 @@ import {
   NativeModules,
   NativeEventEmitter,
 } from 'react-native';
-
-export type WorkerSubscription = {
-  channelId: number;
-  workId: number;
-  state: string;
-};
-
-export type WorkerProgress = Omit<WorkerSubscription, 'state'> & {
-  progress?: number;
-  response?: string;
-  status: string;
-};
-
-export type WorkerResponse = Omit<WorkerProgress, 'progress'> & {
-  response: string;
-};
-
-export type NetworkTask = {
-  url: string;
-  method: 'GET' | 'POST';
-  // headers?: { [key: string]: string };
-  authorization?: string;
-  data?: string;
-};
+import type {
+  CancelledStateResponse,
+  ChainTaskProcess,
+  FailureStateResponse,
+  NetworkTask,
+  RequestMetaDataProcess,
+  StateChangeResponse,
+  SuccessStateResponse,
+  TranscodingProcess,
+  UploadProcess,
+} from './type';
 
 const STATE = {
   IDLE: 'idle',
@@ -75,7 +62,7 @@ class RNBackgroundUpload {
     );
   };
 
-  stopBackgroundUpload = async (workId: number): Promise<void> => {
+  stopBackgroundUpload = async (workId: string): Promise<void> => {
     return await BackgroundUploadModule.stopBackgroundUpload(workId);
   };
 
@@ -86,28 +73,32 @@ class RNBackgroundUpload {
     return await BackgroundUploadModule.getCurrentState(channelId, workId);
   };
 
-  onStateChange = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
+  onStateChange = (fn: (e: StateChangeResponse) => void): EmitterSubscription =>
     BackgroundUploadEmitter.addListener(EVENT.onStateChange, fn);
 
-  onTranscoding = (fn: (e: WorkerProgress) => void): EmitterSubscription =>
+  onTranscoding = (fn: (e: TranscodingProcess) => void): EmitterSubscription =>
     BackgroundUploadEmitter.addListener(EVENT.onTranscoding, fn);
 
-  onRequestMetadata = (fn: (e: WorkerResponse) => void): EmitterSubscription =>
+  onRequestMetadata = (
+    fn: (e: RequestMetaDataProcess) => void
+  ): EmitterSubscription =>
     BackgroundUploadEmitter.addListener(EVENT.onRequestMetadata, fn);
 
-  onUploading = (fn: (e: WorkerProgress) => void): EmitterSubscription =>
+  onUploading = (fn: (e: UploadProcess) => void): EmitterSubscription =>
     BackgroundUploadEmitter.addListener(EVENT.onUploading, fn);
 
-  onChainTasks = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
+  onChainTasks = (fn: (e: ChainTaskProcess) => void): EmitterSubscription =>
     BackgroundUploadEmitter.addListener(EVENT.onChainTask, fn);
 
-  onSuccess = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
+  onSuccess = (fn: (e: SuccessStateResponse) => void): EmitterSubscription =>
     BackgroundUploadEmitter.addListener(EVENT.onSuccess, fn);
 
-  onFailure = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
+  onFailure = (fn: (e: FailureStateResponse) => void): EmitterSubscription =>
     BackgroundUploadEmitter.addListener(EVENT.onFailure, fn);
 
-  onCancelled = (fn: (e: WorkerSubscription) => void): EmitterSubscription =>
+  onCancelled = (
+    fn: (e: CancelledStateResponse) => void
+  ): EmitterSubscription =>
     BackgroundUploadEmitter.addListener(EVENT.onCancelled, fn);
 }
 

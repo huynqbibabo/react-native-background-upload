@@ -51,6 +51,11 @@ class ClearProcessWorker(
           completer.set(Result.failure())
         }
         override fun cancel() {
+          EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.CANCELLED)
+          mNotificationHelpers.startNotify(
+            workId,
+            mNotificationHelpers.getCancelNotificationBuilder().build()
+          )
           completer.set(Result.failure())
         }
       }

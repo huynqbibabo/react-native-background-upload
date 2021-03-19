@@ -19,10 +19,10 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext) 
   }
 
   @ReactMethod
-  fun stopBackgroundUpload(workId: Double, promise: Promise) {
+  fun stopBackgroundUpload(workId: String, promise: Promise) {
     try {
       Log.d("BACKGROUND_UPLOAD", "stop: $workId")
-      WorkManager.getInstance(reactContext).cancelAllWorkByTag(workId.toString())
+      WorkManager.getInstance(reactContext).cancelAllWorkByTag(workId)
       promise.resolve(workId)
     } catch(e: Exception) {
       promise.reject(e)

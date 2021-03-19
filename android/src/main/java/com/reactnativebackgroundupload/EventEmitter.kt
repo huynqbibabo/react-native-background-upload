@@ -53,6 +53,7 @@ class EventEmitter {
   }
 
   fun onStateChange(channelId: Double, workId: Int, state: String) {
+    val prevState = stateMap[workId]
     stateMap[workId] = state
     val params = Arguments.createMap()
     params.putDouble("channelId", channelId)
@@ -61,7 +62,7 @@ class EventEmitter {
     sendJSEvent(EVENT.onStateChange, params)
     when (state) {
       STATE.SUCCESS -> onSuccess(channelId, workId)
-      STATE.CANCELLED -> onCancelled(channelId, workId)
+      STATE.CANCELLED -> prevState?.let { onCancelled(channelId, workId, it) }
       STATE.FAILED -> onFailure(channelId, workId)
     }
   }
@@ -98,6 +99,8 @@ class EventEmitter {
     val params = Arguments.createMap()
     params.putDouble("channelId", channelId)
     params.putInt("workId", workId)
+    params.putString("status", status)
+    params.putString("response", response)
     sendJSEvent(EVENT.onChainTask, params)
   }
 
@@ -108,17 +111,18 @@ class EventEmitter {
     sendJSEvent(EVENT.onSuccess, params)
   }
 
-  private fun onFailure(channelId: Double, workId: Int, ) {
+  private fun onFailure(channelId: Double, workId: Int) {
     val params = Arguments.createMap()
     params.putDouble("channelId", channelId)
     params.putInt("workId", workId)
     sendJSEvent(EVENT.onFailure, params)
   }
 
-  private fun onCancelled(channelId: Double, workId: Int) {
+  private fun onCancelled(channelId: Double, workId: Int, prevState: String) {
     val params = Arguments.createMap()
     params.putDouble("channelId", channelId)
     params.putInt("workId", workId)
+    params.putString("previousState", prevState)
     sendJSEvent(EVENT.onCancelled, params)
   }
 }
