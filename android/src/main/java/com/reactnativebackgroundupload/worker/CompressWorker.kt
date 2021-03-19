@@ -17,7 +17,6 @@ import com.reactnativebackgroundupload.videoCompressor.VideoQuality
 internal interface CompressCallback {
   fun success(outputPath: String)
   fun failure()
-  fun retry()
   fun cancel()
 }
 
@@ -51,14 +50,11 @@ class CompressWorker(
         }
         override fun cancel() {
           EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.CANCELLED)
+          mNotificationHelpers.startNotify(
+            workId,
+            mNotificationHelpers.getCancelNotificationBuilder().build()
+          )
           completer.set(Result.failure())
-        }
-        override fun retry() {
-          if (runAttemptCount > 2) {
-            completer.set(Result.failure())
-          } else {
-            completer.set(Result.retry())
-          }
         }
       }
       compressVideo(filePath, workId, callback)
@@ -87,7 +83,7 @@ class CompressWorker(
               EventEmitter().onTranscoding(channelId, workId, progress, "onProgress")
               mNotificationHelpers.startNotify(
                 notificationId,
-                mNotificationHelpers.getProgressNotificationBuilder(progress).setContentTitle("Đang nén video...").build()
+                mNotificationHelpers.getProgressNotificationBuilder(progress).setContentTitle("Đang nén tập tin media").build()
               )
             }
           }
@@ -124,7 +120,7 @@ class CompressWorker(
             // On Cancelled
             Log.d("COMPRESSION", "Compression cancelled")
             EventEmitter().onTranscoding(channelId, workId, 0, "onCancelled")
-            callback.failure()
+            callback.cancel()
           }
         }, VideoQuality.VERY_HIGH, isMinBitRateEnabled = true, keepOriginalResolution = false)
     }

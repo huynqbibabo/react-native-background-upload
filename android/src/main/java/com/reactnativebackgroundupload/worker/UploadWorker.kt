@@ -50,6 +50,11 @@ class UploadWorker(
           completer.set(Result.failure())
         }
         override fun cancel() {
+          EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.CANCELLED)
+          mNotificationHelpers.startNotify(
+            workId,
+            mNotificationHelpers.getCancelNotificationBuilder().build()
+          )
           completer.set(Result.failure())
         }
         override fun retry() {
@@ -79,7 +84,7 @@ class UploadWorker(
 //      notificationId,
 //      mNotificationHelpers.getFailureNotificationBuilder().build()
 //    )
-    Log.d("METADATA", "stop")
+    Log.d("UPLOAD", "stop")
   }
 
   @SuppressLint("CheckResult")
@@ -88,59 +93,63 @@ class UploadWorker(
     val file = File(filePath)
     val currentProgress = (prt - 1) * 100 / numberOfChunks
 
-    val requestBuilder = AndroidNetworking.upload(requestUrl).apply {
+    // call upload api
+    AndroidNetworking.upload(requestUrl).apply {
       addMultipartFile("data", file)
       addMultipartParameter("filename", fileName)
       addMultipartParameter("hash", hash)
       addMultipartParameter("prt", prt.toString())
-    }.build()
-    requestBuilder.uploadProgressListener = UploadProgressListener { bytesUploaded, totalBytes ->
-      val percentage = (bytesUploaded * 100 / totalBytes).toDouble()
-      val progress = (percentage / numberOfChunks + currentProgress).roundToInt()
+    }.build().apply {
+      // upload progress
+      uploadProgressListener = UploadProgressListener { bytesUploaded, totalBytes ->
+        val percentage = (bytesUploaded * 100 / totalBytes).toDouble()
+        val progress = (percentage / numberOfChunks + currentProgress).roundToInt()
 //      Log.d("UPLOAD", "progress: $progress")
-      if (isStopped) {
-//        requestBuilder.cancel()
-        callback.cancel()
-      } else if (progress <= 100 && progress % 5 == 0) {
-        EventEmitter().onUpload(channelId, workId, "onProgress", progress, "uploading $prt/$numberOfChunks")
-        mNotificationHelpers.startNotify(workId, mNotificationHelpers.getProgressNotificationBuilder(progress).build())
-      }
-    }
-    requestBuilder.getAsJSONObject(object : JSONObjectRequestListener {
-      override fun onResponse(response: JSONObject?) {
-        EventEmitter().onUpload(channelId, workId, "onResponse", 100, response.toString())
         if (isStopped) {
+//        requestBuilder.cancel()
           callback.cancel()
-        } else {
-          Log.d("UPLOAD", "$response")
-          try {
-            val metadata = response?.get("data")
-            val status = response?.get("status")
-            if (metadata != null && status == 1) {
-              EventEmitter().onUpload(channelId, workId, "onSuccess", 100, "successfully upload $prt/$numberOfChunks")
-              callback.success()
-            } else {
-              EventEmitter().onUpload(channelId, workId, "onError", 100, "errorDetail: response status = 0")
+        } else if (progress <= 100 && progress % 5 == 0) {
+          EventEmitter().onUpload(channelId, workId, "onProgress", progress, "uploading $prt/$numberOfChunks")
+          mNotificationHelpers.startNotify(workId, mNotificationHelpers.getProgressNotificationBuilder(progress).build())
+        }
+      }
+      // upload response or error
+      getAsJSONObject(object : JSONObjectRequestListener {
+        override fun onResponse(response: JSONObject?) {
+          EventEmitter().onUpload(channelId, workId, "onResponse", 100, response.toString())
+          if (isStopped) {
+            callback.cancel()
+          } else {
+            Log.d("UPLOAD", "$response")
+            try {
+              val metadata = response?.get("data")
+              val status = response?.get("status")
+              if (metadata != null && status == 1) {
+                EventEmitter().onUpload(channelId, workId, "onSuccess", 100, "successfully upload $prt/$numberOfChunks")
+                callback.success()
+              } else {
+                EventEmitter().onUpload(channelId, workId, "onError", 100, "errorDetail: response status = 0")
+                callback.failure()
+              }
+            } catch (e: JSONException) {
+              Log.e("UPLOAD", "JsonException", e)
+              EventEmitter().onUpload(channelId, workId, "onError", 100, "errorDetail: JSON conversion exception")
               callback.failure()
             }
-          } catch (e: JSONException) {
-            Log.e("UPLOAD", "JsonException", e)
-            EventEmitter().onUpload(channelId, workId, "onError", 100, "errorDetail: JSON conversion exception")
-            callback.failure()
           }
         }
-      }
-      override fun onError(anError: ANError) {
-        if (anError.errorCode != 0) {
-          Log.e("UPLOAD", "onError errorCode : " + anError.errorCode)
-          Log.e("UPLOAD", "onError errorBody : " + anError.errorBody)
-          Log.e("UPLOAD", "onError errorDetail : " + anError.errorDetail)
-        } else {
-          Log.e("UPLOAD", "onError errorDetail : " + anError.errorDetail)
+        override fun onError(anError: ANError) {
+          if (anError.errorCode != 0) {
+            Log.e("UPLOAD", "onError errorCode : " + anError.errorCode)
+            Log.e("UPLOAD", "onError errorBody : " + anError.errorBody)
+            Log.e("UPLOAD", "onError errorDetail : " + anError.errorDetail)
+          } else {
+            Log.e("UPLOAD", "onError errorDetail : " + anError.errorDetail)
+          }
+          EventEmitter().onUpload(channelId, workId, "onError", 0, "errorDetail: " + anError.errorDetail)
+          callback.failure()
         }
-        EventEmitter().onUpload(channelId, workId, "onError", 0, "errorDetail: " + anError.errorDetail)
-        callback.failure()
-      }
-    })
+      })
+    }
   }
 }

@@ -9,7 +9,6 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 
 class NotificationHelpers(private val context: Context) {
-
   companion object {
     const val CHANNEL_ID = "UploadChannel"
     const val CHANNEL_NAME = "Upload notification channel"
@@ -17,7 +16,7 @@ class NotificationHelpers(private val context: Context) {
 
   fun createNotificationChannel() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      val importance = NotificationManager.IMPORTANCE_LOW
+      val importance = NotificationManager.IMPORTANCE_DEFAULT
       val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, importance).apply {
         description = CHANNEL_NAME
       }
@@ -28,55 +27,55 @@ class NotificationHelpers(private val context: Context) {
     }
   }
 
-  fun getProgressNotificationBuilder(progress: Int): NotificationCompat.Builder {
+  private fun getBasicNotificationBuilder(): NotificationCompat.Builder {
     return NotificationCompat.Builder(context, CHANNEL_ID).apply {
-      setContentTitle("Đang tải lên...")
-      setContentText("$progress%")
       setSmallIcon(android.R.drawable.ic_menu_upload)
-      setOngoing(true)
-      setProgress(100, progress, false)
       setDefaults(NotificationCompat.DEFAULT_ALL)
       setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+    }
+  }
+
+  fun getProgressNotificationBuilder(progress: Int): NotificationCompat.Builder {
+    return getBasicNotificationBuilder().apply {
+      setContentTitle("Đang tải lên...")
+      setContentText("$progress%")
+      setOngoing(true)
+      setProgress(100, progress, false)
       priority = NotificationCompat.PRIORITY_LOW
     }
   }
 
   fun getCompleteNotificationBuilder(): NotificationCompat.Builder {
-    return NotificationCompat.Builder(context, CHANNEL_ID).apply {
-      setContentTitle("Tải lên")
-      setContentText("Hoàn thành")
-      setSmallIcon(android.R.drawable.ic_menu_upload)
+    return getBasicNotificationBuilder().apply {
+      setContentTitle("Tải lên hoàn tất")
       setOngoing(false)
-      setDefaults(NotificationCompat.DEFAULT_ALL)
-      setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-      priority = NotificationCompat.PRIORITY_DEFAULT
+      priority = NotificationCompat.PRIORITY_HIGH
     }
-//    setContentTitle("Tải lên hoàn tất")
-//    setContentText("Hoàn thành")
+  }
+
+  fun getCancelNotificationBuilder(): NotificationCompat.Builder {
+    return getBasicNotificationBuilder().apply {
+      setContentTitle("Tải lên đã được huỷ bỏ")
+      setOngoing(false)
+      priority = NotificationCompat.PRIORITY_HIGH
+    }
   }
 
   fun getFailureNotificationBuilder(): NotificationCompat.Builder {
-    return NotificationCompat.Builder(context, CHANNEL_ID).apply {
+    return getBasicNotificationBuilder().apply {
       setContentTitle("Tải lên thất bại")
       setContentText("Vui lòng thử lại sau")
-      setSmallIcon(android.R.drawable.ic_menu_upload)
       setOngoing(false)
-      setDefaults(NotificationCompat.DEFAULT_ALL)
-      setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-      priority = NotificationCompat.PRIORITY_DEFAULT
+      priority = NotificationCompat.PRIORITY_HIGH
     }
   }
 
   fun getSplitNotificationBuilder(): NotificationCompat.Builder {
-    return NotificationCompat.Builder(context, CHANNEL_ID).apply {
-      setContentTitle("Chuẩn bị file để tải lên")
-//      setContentText("Hoàn thành")
-      setSmallIcon(android.R.drawable.ic_menu_upload)
+    return getBasicNotificationBuilder().apply {
+      setContentTitle("Chuẩn bị tập tin media để tải lên")
       setProgress(100, 0, true)
       setOngoing(true)
-      setDefaults(NotificationCompat.DEFAULT_ALL)
-      setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-      priority = NotificationCompat.PRIORITY_DEFAULT
+      priority = NotificationCompat.PRIORITY_HIGH
     }
   }
 

@@ -71,6 +71,10 @@ class SplitWorker(
         }
         if (isStopped) {
           EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.CANCELLED)
+          mNotificationHelpers.startNotify(
+            workId,
+            mNotificationHelpers.getCancelNotificationBuilder().build()
+          )
           completer.set(Result.failure())
         } else {
           completer.set(Result.success(
