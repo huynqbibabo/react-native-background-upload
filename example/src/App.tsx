@@ -7,7 +7,25 @@ import {
 } from 'react-native-image-picker';
 
 export default function App() {
-  const onPress = () => {
+  const uploadChannelId = 1;
+  const uploadWorkId = React.useRef(0);
+
+  React.useEffect(() => {
+    BackgroundUpload.onStateChange((response) => {
+      console.log('onStateChange: ', response);
+    });
+    BackgroundUpload.onRequestMetadata((response) => {
+      console.log('onRequestMetadata: ', response);
+    });
+    BackgroundUpload.onUploading((response) => {
+      console.log('onUploading: ', response);
+    });
+    BackgroundUpload.onTranscoding((response) => {
+      console.log('onTranscoding: ', response);
+    });
+  }, []);
+
+  const onPressStart = () => {
     const options: ImageLibraryOptions = {
       videoQuality: 'high',
       mediaType: 'video',
@@ -20,21 +38,44 @@ export default function App() {
         console.log('ImagePicker Error: ', response.errorCode);
       } else if (response.uri) {
         BackgroundUpload.startBackgroundUploadVideo(
+          uploadChannelId,
           'https://localhost/uploadUrl',
           'https://localhost/metaDataUrl',
           response.uri,
           1024 * 1024 * 2.5,
-          false,
+          true,
           null
-        );
+        ).then((workId: number) => {
+          console.log('workId', workId);
+          uploadWorkId.current = workId;
+        });
       }
+    });
+  };
+
+  const onPressStop = (): void => {
+    BackgroundUpload.stopBackgroundUpload(uploadChannelId);
+  };
+
+  const onPressState = (): void => {
+    BackgroundUpload.getCurrentState(
+      uploadChannelId,
+      uploadWorkId.current
+    ).then((state) => {
+      console.log(state);
     });
   };
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.box} onPress={onPress}>
+      <TouchableOpacity style={styles.box} onPress={onPressStart}>
         <Text>Pick video and Upload</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.box} onPress={onPressStop}>
+        <Text>Stop Upload</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.box} onPress={onPressState}>
+        <Text>Get current state</Text>
       </TouchableOpacity>
     </View>
   );

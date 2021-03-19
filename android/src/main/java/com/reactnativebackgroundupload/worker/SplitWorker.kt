@@ -6,6 +6,7 @@ import androidx.concurrent.futures.CallbackToFutureAdapter
 import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
 import com.google.common.util.concurrent.ListenableFuture
+import com.reactnativebackgroundupload.EventEmitter
 import com.reactnativebackgroundupload.NotificationHelpers
 import com.reactnativebackgroundupload.model.ModelRequestMetadata
 import com.reactnativebackgroundupload.model.ModelTranscodeInput
@@ -15,22 +16,40 @@ class SplitWorker(
   context: Context,
   params: WorkerParameters
 ) : ListenableWorker(context, params) {
+  private val mNotificationHelpers = NotificationHelpers(applicationContext)
+  private val workId = inputData.getInt(ModelTranscodeInput.KEY_WORK_ID, 1)
+  private val channelId = inputData.getDouble(ModelTranscodeInput.KEY_EVENT_EMITTER_CHANNEL_ID, 1.0)
+
+  override fun onStopped() {
+//    mNotificationHelpers.startNotify(
+//      notificationId,
+//      mNotificationHelpers.getFailureNotificationBuilder().build()
+//    )
+    Log.d("METADATA", "stop")
+  }
+
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
       try {
-        val notificationId = inputData.getInt(ModelTranscodeInput.KEY_NOTIFICATION_ID, 1)
-        val chunkSize = inputData.getInt(ModelTranscodeInput.KEY_CHUNK_SIZE, ModelTranscodeInput.DEFAULT_CHUNK_SIZE)
+        EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.SPLIT)
+        var chunkSize = inputData.getInt(ModelTranscodeInput.KEY_CHUNK_SIZE, ModelTranscodeInput.DEFAULT_CHUNK_SIZE)
         val filePath = inputData.getString(ModelTranscodeInput.KEY_FILE_PATH)!!
 
         val mNotificationHelpers = NotificationHelpers(applicationContext)
-        mNotificationHelpers.startNotify(notificationId, mNotificationHelpers.getSplitNotificationBuilder().build())
+        mNotificationHelpers.startNotify(workId, mNotificationHelpers.getSplitNotificationBuilder().build())
 
         val file = File(filePath)
         val result: MutableList<String> = ArrayList()
         val currentTimeMillis = System.currentTimeMillis()
 
+        // check if file size still too large after compression
+        val fileSize = file.length().toInt()
+        if (fileSize > ModelTranscodeInput.DEFAULT_CHUNK_SIZE * 10) {
+          chunkSize = ModelTranscodeInput.DEFAULT_CHUNK_SIZE
+        }
+
         // check whether to split video into chunks or not
-        if (file.length().toInt() > chunkSize) {
+        if (fileSize > chunkSize && !isStopped) {
           // split file into chunks and add paths to result array
           var partCounter = 1
           val buffer = ByteArray(chunkSize) // create a buffer of bytes sized as the one chunk size
@@ -50,11 +69,21 @@ class SplitWorker(
           // use compressed video file path instead
           result.add(filePath)
         }
-        completer.set(Result.success(
-          ModelRequestMetadata().createInputDataForRequestMetadata(result.toTypedArray())
-        ))
+        if (isStopped) {
+          EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.CANCELLED)
+          completer.set(Result.failure())
+        } else {
+          completer.set(Result.success(
+            ModelRequestMetadata().createInputDataForRequestMetadata(result.toTypedArray())
+          ))
+        }
       } catch (e: IOException) {
         Log.e("SPLIT", "IOException", e)
+        EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.FAILED)
+        mNotificationHelpers.startNotify(
+          workId,
+          mNotificationHelpers.getFailureNotificationBuilder().build()
+        )
         completer.set(Result.failure())
       }
     }
