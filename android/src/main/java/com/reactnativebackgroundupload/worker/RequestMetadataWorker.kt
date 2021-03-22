@@ -31,11 +31,10 @@ class RequestMetadataWorker(
 ) : ListenableWorker(context, params) {
   private val mNotificationHelpers = NotificationHelpers(applicationContext)
   private val workId = inputData.getInt(ModelRequestMetadata.KEY_WORK_ID, 1)
-  private val channelId = inputData.getDouble(ModelRequestMetadata.KEY_EVENT_EMITTER_CHANNEL_ID, 1.0)
 
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
-      EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.REQUEST_METADATA)
+      EventEmitter().onStateChange(workId, EventEmitter.STATE.REQUEST_METADATA)
       val chunkPaths = inputData.getStringArray(ModelRequestMetadata.KEY_CHUNK_PATH_ARRAY)!!
 
       val callback: RequestMetadataCallback = object : RequestMetadataCallback {
@@ -44,7 +43,7 @@ class RequestMetadataWorker(
           completer.set(Result.success())
         }
         override fun failure() {
-          EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.FAILED)
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED)
           mNotificationHelpers.startNotify(
             workId,
             mNotificationHelpers.getFailureNotificationBuilder().build()
@@ -53,7 +52,7 @@ class RequestMetadataWorker(
           completer.set(Result.failure())
         }
         override fun cancel() {
-          EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.CANCELLED)
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED)
           mNotificationHelpers.startNotify(
             workId,
             mNotificationHelpers.getCancelNotificationBuilder().build()
@@ -94,14 +93,14 @@ class RequestMetadataWorker(
   }
 
   private fun requestMetadata(metadataUrl: String, uploadUrl: String, chunkPaths: Array<String>, callback: RequestMetadataCallback) {
-    EventEmitter().onRequestMetadata(channelId, workId, "onStart", "")
+    EventEmitter().onRequestMetadata(workId, "onStart", "")
     val chunkSize = chunkPaths.size
     AndroidNetworking.post(metadataUrl).apply {
       addBodyParameter("cto", "$chunkSize")
       addBodyParameter("ext", "mp4")
     }.build().getAsJSONObject(object : JSONObjectRequestListener {
       override fun onResponse(response: JSONObject?) {
-        EventEmitter().onRequestMetadata(channelId, workId, "onResponse", response.toString())
+        EventEmitter().onRequestMetadata(workId, "onResponse", response.toString())
         if (isStopped) {
           callback.cancel()
         } else {
@@ -114,17 +113,17 @@ class RequestMetadataWorker(
               Log.d("METADATA", "url: ${convertMetadata.url}")
               Log.d("METADATA", "filename: ${convertMetadata.filename}")
               Log.d("METADATA", "hash: ${convertMetadata.hashes}")
-              EventEmitter().onRequestMetadata(channelId, workId, "onGetMetadataSuccess", response.toString())
+              EventEmitter().onRequestMetadata(workId, "onGetMetadataSuccess", response.toString())
               startUploadWorker(convertMetadata, uploadUrl, chunkPaths, chunkSize, callback)
               callback.success()
             } else {
               Log.d("METADATA", "$response")
-              EventEmitter().onRequestMetadata(channelId, workId, "onGetMetadataError", "errorDetail: response status = 0")
+              EventEmitter().onRequestMetadata(workId, "onGetMetadataError", "errorDetail: response status = 0")
               callback.failure()
             }
           } catch (e: JSONException) {
             Log.e("METADATA", "JsonException", e)
-            EventEmitter().onRequestMetadata(channelId, workId, "onGetMetadataError", "errorDetail: JSON conversion exception")
+            EventEmitter().onRequestMetadata(workId, "onGetMetadataError", "errorDetail: JSON conversion exception")
             callback.failure()
           }
         }
@@ -137,7 +136,7 @@ class RequestMetadataWorker(
         } else {
           Log.e("METADATA", "onError errorDetail : " + anError.errorDetail)
         }
-        EventEmitter().onRequestMetadata(channelId, workId, "onGetMetadataError", "errorDetail: " + anError.errorDetail)
+        EventEmitter().onRequestMetadata(workId, "onGetMetadataError", "errorDetail: " + anError.errorDetail)
         callback.failure()
       }
     })
@@ -152,7 +151,7 @@ class RequestMetadataWorker(
         val fileName = data.filename
         val hashMap = data.hashes
         if (hashMap != null && fileName != null) {
-          EventEmitter().onRequestMetadata(channelId, workId, "onSetupUploadTask", "")
+          EventEmitter().onRequestMetadata(workId, "onSetupUploadTask", "")
           // create work tag from unique id
           val workTag = workId.toString()
           // init work manager
@@ -168,7 +167,7 @@ class RequestMetadataWorker(
             val uploadRequest = OneTimeWorkRequestBuilder<UploadWorker>().apply {
               setConstraints(workConstraints)
               setInputData(
-                ModelUploadInput().createInputDataForUpload(uploadUrl, fileName, chunkPaths[prt - 1], value, prt, chunkSize, workId, channelId)
+                ModelUploadInput().createInputDataForUpload(uploadUrl, fileName, chunkPaths[prt - 1], value, prt, chunkSize, workId)
               )
               addTag(workTag)
             }.build()
@@ -184,13 +183,13 @@ class RequestMetadataWorker(
             .addTag(workTag)
             .setInitialDelay(5, TimeUnit.SECONDS)
             .setInputData(
-              ModelClearTask().createInputDataForClearTask(workId, channelId, fileName, url, method, authorization, chainData)
+              ModelClearTask().createInputDataForClearTask(workId, fileName, url, method, authorization, chainData)
             ).build()
           workContinuation = workContinuation?.then(clearRequest)
           if (isStopped) {
             callback.cancel()
           } else {
-            EventEmitter().onRequestMetadata(channelId, workId, "onEnqueueUploadTask", "")
+            EventEmitter().onRequestMetadata(workId, "onEnqueueUploadTask", "")
             workContinuation?.enqueue()
             callback.success()
           }

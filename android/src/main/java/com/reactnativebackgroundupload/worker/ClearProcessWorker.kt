@@ -17,8 +17,8 @@ import org.json.JSONException
 import org.json.JSONObject
 
 internal interface TaskCallback {
-  fun success()
-  fun failure()
+  fun success(response: String)
+  fun failure(response: String)
   fun cancel()
 }
 
@@ -28,22 +28,22 @@ class ClearProcessWorker(
 ) : ListenableWorker(context, params) {
   private val mNotificationHelpers = NotificationHelpers(applicationContext)
   private val workId = inputData.getInt(ModelClearTask.KEY_WORK_ID, 1)
-  private val channelId = inputData.getDouble(ModelClearTask.KEY_EVENT_EMITTER_CHANNEL_ID, 1.0)
 
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
-      EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.CHAIN_TASK)
+      EventEmitter().onStateChange(workId, EventEmitter.STATE.CHAIN_TASK)
       val callback: TaskCallback = object : TaskCallback {
-        override fun success() {
-          EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.SUCCESS)
+        override fun success(response: String) {
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.SUCCESS)
+          EventEmitter().onSuccess(workId, response)
           mNotificationHelpers.startNotify(
             workId,
             mNotificationHelpers.getCompleteNotificationBuilder().build()
           )
           completer.set(Result.success())
         }
-        override fun failure() {
-          EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.FAILED)
+        override fun failure(response: String) {
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED)
           mNotificationHelpers.startNotify(
             workId,
             mNotificationHelpers.getFailureNotificationBuilder().build()
@@ -51,7 +51,7 @@ class ClearProcessWorker(
           completer.set(Result.failure())
         }
         override fun cancel() {
-          EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.CANCELLED)
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED)
           mNotificationHelpers.startNotify(
             workId,
             mNotificationHelpers.getCancelNotificationBuilder().build()
@@ -80,7 +80,6 @@ class ClearProcessWorker(
           }
         }.build().getAsJSONObject(object : JSONObjectRequestListener {
           override fun onResponse(response: JSONObject?) {
-            EventEmitter().onChainTask(channelId, workId, "onResponse", response.toString())
             if (isStopped) {
               callback.cancel()
             } else {
@@ -88,16 +87,13 @@ class ClearProcessWorker(
               try {
                 val status = response?.get("status")
                 if (status == 1) {
-                  EventEmitter().onChainTask(channelId, workId, "onSuccess", response.toString())
-                  callback.success()
+                  callback.success(response.toString())
                 } else {
-                  EventEmitter().onChainTask(channelId, workId, "onError", "errorDetail: response status = 0")
-                  callback.failure()
+                  callback.failure("errorDetail: response status = 0")
                 }
               } catch (e: JSONException) {
                 Log.e("CHAIN_TASK", "JsonException", e)
-                EventEmitter().onChainTask(channelId, workId, "onError", "errorDetail: JSON conversion exception")
-                callback.failure()
+                callback.failure("errorDetail: JSON conversion exception")
               }
             }
           }
@@ -110,14 +106,12 @@ class ClearProcessWorker(
             } else {
               Log.d("CHAIN_TASK", "onError errorDetail : " + anError.errorDetail)
             }
-            EventEmitter().onChainTask(channelId, workId, "onError", "errorDetail : " + anError.errorDetail)
-            callback.failure()
+            callback.failure("errorDetail : " + anError.errorDetail)
           }
         })
       } else {
-        EventEmitter().onChainTask(channelId, workId, "onSuccess", "complete with no chain task")
         Log.d("CHAIN_TASK", "complete with no chain task")
-        callback.success()
+        callback.success("complete with no chain task")
       }
       callback
     }

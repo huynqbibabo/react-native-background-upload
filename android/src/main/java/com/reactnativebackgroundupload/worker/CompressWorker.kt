@@ -26,22 +26,21 @@ class CompressWorker(
 ) : ListenableWorker(context, params) {
   private val mNotificationHelpers = NotificationHelpers(applicationContext)
   private val workId = inputData.getInt(ModelTranscodeInput.KEY_WORK_ID, 1)
-  private val channelId = inputData.getDouble(ModelTranscodeInput.KEY_EVENT_EMITTER_CHANNEL_ID, 1.0)
 
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
-      EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.TRANSCODE)
+      EventEmitter().onStateChange(workId, EventEmitter.STATE.TRANSCODE)
       val chunkSize = inputData.getInt(ModelTranscodeInput.KEY_CHUNK_SIZE, ModelTranscodeInput.DEFAULT_CHUNK_SIZE)
       val filePath = inputData.getString(ModelTranscodeInput.KEY_FILE_PATH)
 
       val callback: CompressCallback = object : CompressCallback {
         override fun success(outputPath: String) {
           completer.set(Result.success(
-            ModelTranscodeInput().createInputDataForTranscode(channelId, workId, outputPath, chunkSize)
+            ModelTranscodeInput().createInputDataForTranscode(workId, outputPath, chunkSize)
           ))
         }
         override fun failure() {
-          EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.FAILED)
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED)
           mNotificationHelpers.startNotify(
             workId,
             mNotificationHelpers.getFailureNotificationBuilder().build()
@@ -49,7 +48,8 @@ class CompressWorker(
           completer.set(Result.failure())
         }
         override fun cancel() {
-          EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.CANCELLED)
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED)
+          mNotificationHelpers.cancelNotification(workId)
           mNotificationHelpers.startNotify(
             workId,
             mNotificationHelpers.getCancelNotificationBuilder().build()
@@ -80,7 +80,7 @@ class CompressWorker(
             val progress = percent.toInt()
             if (progress <= 100 && progress % 5 == 0) {
 //              Log.d("COMPRESSION", "Compression progress: ${percent.toInt()}")
-              EventEmitter().onTranscoding(channelId, workId, progress, "onProgress")
+              EventEmitter().onTranscoding(workId, progress, "onProgress")
               mNotificationHelpers.startNotify(
                 notificationId,
                 mNotificationHelpers.getProgressNotificationBuilder(progress).setContentTitle("Đang nén tập tin media").build()
@@ -89,7 +89,7 @@ class CompressWorker(
           }
           override fun onStart() {
             // Compression start
-            EventEmitter().onTranscoding(channelId, workId, 0, "onStart")
+            EventEmitter().onTranscoding(workId, 0, "onStart")
             Log.d("COMPRESSION", "Compression start")
           }
           override fun onSuccess() {
@@ -97,7 +97,7 @@ class CompressWorker(
             if (isStopped) {
               callback.cancel()
             } else {
-              EventEmitter().onTranscoding(channelId, workId, 100, "onSuccess")
+              EventEmitter().onTranscoding(workId, 100, "onSuccess")
               Log.d("COMPRESSION", "Compression success")
               callback.success(outputPath)
             }
@@ -107,11 +107,11 @@ class CompressWorker(
             if (isStopped) {
               callback.cancel()
             } else if (failureMessage == Compressor.INVALID_BITRATE) {
-              EventEmitter().onTranscoding(channelId, workId, 100, "onSuccess")
+              EventEmitter().onTranscoding(workId, 100, "onSuccess")
               Log.wtf("COMPRESSION", failureMessage)
               callback.success(inputPath)
             } else {
-              EventEmitter().onTranscoding(channelId, workId, 0, "onFailure")
+              EventEmitter().onTranscoding(workId, 0, "onFailure")
               Log.wtf("COMPRESSION", failureMessage)
               callback.failure()
             }
@@ -119,7 +119,7 @@ class CompressWorker(
           override fun onCancelled() {
             // On Cancelled
             Log.d("COMPRESSION", "Compression cancelled")
-            EventEmitter().onTranscoding(channelId, workId, 0, "onCancelled")
+            EventEmitter().onTranscoding(workId, 0, "onCancelled")
             callback.cancel()
           }
         }, VideoQuality.VERY_HIGH, isMinBitRateEnabled = true, keepOriginalResolution = false)

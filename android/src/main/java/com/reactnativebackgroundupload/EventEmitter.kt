@@ -48,46 +48,41 @@ class EventEmitter {
     reactContext = context
   }
 
-  fun getCurrentState(channelId: Double, workId: Int): String? {
+  fun getCurrentState(workId: Int): String? {
     return stateMap[workId]
   }
 
-  fun onStateChange(channelId: Double, workId: Int, state: String) {
+  fun onStateChange(workId: Int, state: String) {
     val prevState = stateMap[workId]
     stateMap[workId] = state
     val params = Arguments.createMap()
-    params.putDouble("channelId", channelId)
     params.putInt("workId", workId)
     params.putString("state", state)
     sendJSEvent(EVENT.onStateChange, params)
     when (state) {
-      STATE.SUCCESS -> onSuccess(channelId, workId)
-      STATE.CANCELLED -> prevState?.let { onCancelled(channelId, workId, it) }
-      STATE.FAILED -> onFailure(channelId, workId)
+      STATE.CANCELLED -> prevState?.let { onCancelled(workId, it) }
+      STATE.FAILED -> onFailure(workId)
     }
   }
 
-  fun onTranscoding(channelId: Double, workId: Int, progress: Int, status: String) {
+  fun onTranscoding(workId: Int, progress: Int, status: String) {
     val params = Arguments.createMap()
-    params.putDouble("channelId", channelId)
     params.putInt("workId", workId)
     params.putInt("progress", progress)
     params.putString("status", status)
     sendJSEvent(EVENT.onTranscoding, params)
   }
 
-  fun onRequestMetadata(channelId: Double, workId: Int, status: String, response: String) {
+  fun onRequestMetadata(workId: Int, status: String, response: String) {
     val params = Arguments.createMap()
-    params.putDouble("channelId", channelId)
     params.putInt("workId", workId)
     params.putString("status", status)
     params.putString("response", response)
     sendJSEvent(EVENT.onRequestMetadata, params)
   }
 
-  fun onUpload(channelId: Double, workId: Int, status: String, progress: Int, response: String) {
+  fun onUpload(workId: Int, status: String, progress: Int, response: String) {
     val params = Arguments.createMap()
-    params.putDouble("channelId", channelId)
     params.putInt("workId", workId)
     params.putInt("progress", progress)
     params.putString("status", status)
@@ -95,32 +90,21 @@ class EventEmitter {
     sendJSEvent(EVENT.onUploading, params)
   }
 
-  fun onChainTask(channelId: Double, workId: Int, status: String, response: String) {
+  fun onSuccess(workId: Int, response: String) {
     val params = Arguments.createMap()
-    params.putDouble("channelId", channelId)
     params.putInt("workId", workId)
-    params.putString("status", status)
     params.putString("response", response)
-    sendJSEvent(EVENT.onChainTask, params)
-  }
-
-  private fun onSuccess(channelId: Double, workId: Int) {
-    val params = Arguments.createMap()
-    params.putDouble("channelId", channelId)
-    params.putInt("workId", workId)
     sendJSEvent(EVENT.onSuccess, params)
   }
 
-  private fun onFailure(channelId: Double, workId: Int) {
+  private fun onFailure(workId: Int) {
     val params = Arguments.createMap()
-    params.putDouble("channelId", channelId)
     params.putInt("workId", workId)
     sendJSEvent(EVENT.onFailure, params)
   }
 
-  private fun onCancelled(channelId: Double, workId: Int, prevState: String) {
+  private fun onCancelled(workId: Int, prevState: String) {
     val params = Arguments.createMap()
-    params.putDouble("channelId", channelId)
     params.putInt("workId", workId)
     params.putString("previousState", prevState)
     sendJSEvent(EVENT.onCancelled, params)

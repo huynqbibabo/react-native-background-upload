@@ -17,7 +17,9 @@ class ClearCacheWorker(
       val chunkPaths = inputData.getStringArray(ModelClearCache.KEY_CHUNK_PATH_ARRAY)!!
       chunkPaths.forEach { chunk ->
         val file = File(chunk)
-        file.delete()
+        if (file.exists()) {
+          file.delete()
+        }
       }
       completer.set(Result.success())
     }

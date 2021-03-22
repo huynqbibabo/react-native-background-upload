@@ -7,7 +7,6 @@ import {
 } from 'react-native-image-picker';
 
 export default function App() {
-  const uploadChannelId = 1;
   const uploadWorkId = React.useRef(0);
 
   React.useEffect(() => {
@@ -29,6 +28,7 @@ export default function App() {
   }, []);
 
   const onPressStart = () => {
+    uploadWorkId.current = Math.floor(Date.now() / 1000);
     const options: ImageLibraryOptions = {
       videoQuality: 'high',
       mediaType: 'video',
@@ -41,16 +41,17 @@ export default function App() {
         console.log('ImagePicker Error: ', response.errorCode);
       } else if (response.uri) {
         BackgroundUpload.startBackgroundUploadVideo(
-          uploadChannelId,
-          'https://localhost/uploadUrl',
-          'https://localhost/metaDataUrl',
+          uploadWorkId.current,
+          // 'https://localhost/uploadUrl',
+          // 'https://localhost/metaDataUrl',
+          'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/partUpload',
+          'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/metadata',
           response.uri,
           1024 * 1024 * 2.5,
           true,
           null
         ).then((workId: number) => {
           console.log('workId', workId);
-          uploadWorkId.current = workId;
         });
       }
     });
@@ -61,10 +62,7 @@ export default function App() {
   };
 
   const onPressState = (): void => {
-    BackgroundUpload.getCurrentState(
-      uploadChannelId,
-      uploadWorkId.current
-    ).then((state) => {
+    BackgroundUpload.getCurrentState(uploadWorkId.current).then((state) => {
       console.log(state);
     });
   };
