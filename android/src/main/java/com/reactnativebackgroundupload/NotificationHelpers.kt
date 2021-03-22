@@ -16,7 +16,7 @@ class NotificationHelpers(private val context: Context) {
 
   fun createNotificationChannel() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      val importance = NotificationManager.IMPORTANCE_DEFAULT
+      val importance = NotificationManager.IMPORTANCE_LOW
       val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, importance).apply {
         description = CHANNEL_NAME
       }
@@ -49,7 +49,7 @@ class NotificationHelpers(private val context: Context) {
     return getBasicNotificationBuilder().apply {
       setContentTitle("Tải lên hoàn tất")
       setOngoing(false)
-      priority = NotificationCompat.PRIORITY_HIGH
+      priority = NotificationCompat.PRIORITY_LOW
     }
   }
 
@@ -57,7 +57,7 @@ class NotificationHelpers(private val context: Context) {
     return getBasicNotificationBuilder().apply {
       setContentTitle("Tải lên đã được huỷ bỏ")
       setOngoing(false)
-      priority = NotificationCompat.PRIORITY_HIGH
+      priority = NotificationCompat.PRIORITY_LOW
     }
   }
 
@@ -66,7 +66,7 @@ class NotificationHelpers(private val context: Context) {
       setContentTitle("Tải lên thất bại")
       setContentText("Vui lòng thử lại sau")
       setOngoing(false)
-      priority = NotificationCompat.PRIORITY_HIGH
+      priority = NotificationCompat.PRIORITY_LOW
     }
   }
 
@@ -75,7 +75,7 @@ class NotificationHelpers(private val context: Context) {
       setContentTitle("Chuẩn bị tập tin media để tải lên")
       setProgress(100, 0, true)
       setOngoing(true)
-      priority = NotificationCompat.PRIORITY_HIGH
+      priority = NotificationCompat.PRIORITY_LOW
     }
   }
 
