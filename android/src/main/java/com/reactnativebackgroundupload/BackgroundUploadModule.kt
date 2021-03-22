@@ -30,9 +30,9 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext) 
   }
 
   @ReactMethod
-  fun getCurrentState(channelId: Double, workId: Double, promise: Promise) {
+  fun getCurrentState(workId: Int, promise: Promise) {
     try {
-      val state = EventEmitter().getCurrentState(channelId, workId.roundToInt())
+      val state = EventEmitter().getCurrentState(workId)
       promise.resolve(state)
     } catch(e: Exception) {
       promise.reject(e)
@@ -41,16 +41,16 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext) 
 
   @SuppressLint("EnqueueWork")
   @ReactMethod
-  fun startBackgroundUploadVideo(channelId: Double, uploadUrl: String, metadataUrl: String, filePath: String, chunkSize: Int, enableCompression: Boolean, chainTask: ReadableMap?, promise: Promise) {
+  fun startBackgroundUploadVideo(workId: Int, uploadUrl: String, metadataUrl: String, filePath: String, chunkSize: Int, enableCompression: Boolean, chainTask: ReadableMap?, promise: Promise) {
     try {
+      Log.d("BACKGROUND_UPLOAD", "start: $workId")
       // set up event emitter
       EventEmitter().setReactContext(reactContext)
       // set up notification and work tag
       NotificationHelpers(reactContext).createNotificationChannel()
 
-      val workId = System.currentTimeMillis().toInt() // get unique work id for notification and work request
       val workTag = workId.toString() // get unique work tag
-      EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.IDLE)
+      EventEmitter().onStateChange(workId, EventEmitter.STATE.IDLE)
 
       // get file:// path
       val realFilePath = RealPathUtil.getRealPath(reactContext, Uri.parse(filePath))
@@ -60,7 +60,7 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext) 
       if (enableCompression) {
         // setup worker for video compression
         val compressRequest = OneTimeWorkRequestBuilder<CompressWorker>()
-          .setInputData(ModelTranscodeInput().createInputDataForTranscode(channelId, workId, realFilePath, chunkSize))
+          .setInputData(ModelTranscodeInput().createInputDataForTranscode(workId, realFilePath, chunkSize))
           .addTag(workTag)
           .build()
         workContinuation = workManager.beginWith(compressRequest)
@@ -70,7 +70,7 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext) 
       } else {
         // setup worker for split request
         val splitRequest = OneTimeWorkRequestBuilder<SplitWorker>()
-          .setInputData(ModelTranscodeInput().createInputDataForTranscode(channelId, workId, realFilePath, chunkSize))
+          .setInputData(ModelTranscodeInput().createInputDataForTranscode(workId, realFilePath, chunkSize))
           .addTag(workTag)
           .build()
         workContinuation = workManager.beginWith(splitRequest)
@@ -85,9 +85,9 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext) 
           val method = chainTask.getString("method")
           val authorization = chainTask.getString("authorization")
           val data = chainTask.getString("data")
-          setInputData(ModelRequestMetadata().createInputDataForRequestTask(workId, channelId, uploadUrl, metadataUrl, taskUrl, method, authorization, data))
+          setInputData(ModelRequestMetadata().createInputDataForRequestTask(workId, uploadUrl, metadataUrl, taskUrl, method, authorization, data))
         } else {
-          setInputData(ModelRequestMetadata().createInputDataForUpload(workId, channelId, uploadUrl, metadataUrl))
+          setInputData(ModelRequestMetadata().createInputDataForUpload(workId, uploadUrl, metadataUrl))
         }
         setConstraints(metadataConstraints)
         addTag(workTag)

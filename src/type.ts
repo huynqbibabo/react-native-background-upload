@@ -20,7 +20,6 @@ export type State =
   | 'cancelled';
 
 export type StateChangeResponse = {
-  channelId: number;
   workId: number;
   state: State;
 };

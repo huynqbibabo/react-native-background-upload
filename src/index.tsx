@@ -66,11 +66,8 @@ class RNBackgroundUpload {
     return await BackgroundUploadModule.stopBackgroundUpload(workId);
   };
 
-  getCurrentState = async (
-    channelId: number,
-    workId: number
-  ): Promise<string> => {
-    return await BackgroundUploadModule.getCurrentState(channelId, workId);
+  getCurrentState = async (workId: number): Promise<string> => {
+    return await BackgroundUploadModule.getCurrentState(workId);
   };
 
   onStateChange = (fn: (e: StateChangeResponse) => void): EmitterSubscription =>

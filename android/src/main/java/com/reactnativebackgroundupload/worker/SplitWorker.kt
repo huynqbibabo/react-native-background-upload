@@ -18,7 +18,6 @@ class SplitWorker(
 ) : ListenableWorker(context, params) {
   private val mNotificationHelpers = NotificationHelpers(applicationContext)
   private val workId = inputData.getInt(ModelTranscodeInput.KEY_WORK_ID, 1)
-  private val channelId = inputData.getDouble(ModelTranscodeInput.KEY_EVENT_EMITTER_CHANNEL_ID, 1.0)
 
   override fun onStopped() {
 //    mNotificationHelpers.startNotify(
@@ -31,7 +30,7 @@ class SplitWorker(
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
       try {
-        EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.SPLIT)
+        EventEmitter().onStateChange(workId, EventEmitter.STATE.SPLIT)
         var chunkSize = inputData.getInt(ModelTranscodeInput.KEY_CHUNK_SIZE, ModelTranscodeInput.DEFAULT_CHUNK_SIZE)
         val filePath = inputData.getString(ModelTranscodeInput.KEY_FILE_PATH)!!
 
@@ -70,7 +69,7 @@ class SplitWorker(
           result.add(filePath)
         }
         if (isStopped) {
-          EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.CANCELLED)
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED)
           mNotificationHelpers.startNotify(
             workId,
             mNotificationHelpers.getCancelNotificationBuilder().build()
@@ -83,7 +82,7 @@ class SplitWorker(
         }
       } catch (e: IOException) {
         Log.e("SPLIT", "IOException", e)
-        EventEmitter().onStateChange(channelId, workId, EventEmitter.STATE.FAILED)
+        EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED)
         mNotificationHelpers.startNotify(
           workId,
           mNotificationHelpers.getFailureNotificationBuilder().build()
