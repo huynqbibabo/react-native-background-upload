@@ -42,10 +42,8 @@ export default function App() {
       } else if (response.uri) {
         BackgroundUpload.startBackgroundUploadVideo(
           uploadChannelId,
-          // 'https://localhost/uploadUrl',
-          // 'https://localhost/metaDataUrl',
-          'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/partUpload',
-          'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/metadata',
+          'https://localhost/uploadUrl',
+          'https://localhost/metaDataUrl',
           response.uri,
           1024 * 1024 * 2.5,
           true,
