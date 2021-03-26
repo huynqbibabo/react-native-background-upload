@@ -34,7 +34,7 @@ class RequestMetadataWorker(
 
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
-      EventEmitter().onStateChange(workId, EventEmitter.STATE.REQUEST_METADATA)
+      EventEmitter().onStateChange(workId, EventEmitter.STATE.REQUEST_METADATA, "start", 0)
       val chunkPaths = inputData.getStringArray(ModelRequestMetadata.KEY_CHUNK_PATH_ARRAY)!!
 
       val callback: RequestMetadataCallback = object : RequestMetadataCallback {
@@ -43,7 +43,6 @@ class RequestMetadataWorker(
           completer.set(Result.success())
         }
         override fun failure() {
-          EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED)
           mNotificationHelpers.startNotify(
             workId,
             mNotificationHelpers.getFailureNotificationBuilder().build()
@@ -52,7 +51,6 @@ class RequestMetadataWorker(
           completer.set(Result.failure())
         }
         override fun cancel() {
-          EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED)
           mNotificationHelpers.startNotify(
             workId,
             mNotificationHelpers.getCancelNotificationBuilder().build()
@@ -74,13 +72,13 @@ class RequestMetadataWorker(
     }
   }
 
-  override fun onStopped() {
+//  override fun onStopped() {
 //    mNotificationHelpers.startNotify(
 //      notificationId,
 //      mNotificationHelpers.getFailureNotificationBuilder().build()
 //    )
-    Log.d("METADATA", "stop")
-  }
+//    Log.d("METADATA", "stop")
+//  }
 
   @RequiresApi(Build.VERSION_CODES.GINGERBREAD)
   private fun clearCache(chunkPaths: Array<String>) {
@@ -93,15 +91,14 @@ class RequestMetadataWorker(
   }
 
   private fun requestMetadata(metadataUrl: String, uploadUrl: String, chunkPaths: Array<String>, callback: RequestMetadataCallback) {
-    EventEmitter().onRequestMetadata(workId, "onStart", "")
     val chunkSize = chunkPaths.size
     AndroidNetworking.post(metadataUrl).apply {
       addBodyParameter("cto", "$chunkSize")
       addBodyParameter("ext", "mp4")
     }.build().getAsJSONObject(object : JSONObjectRequestListener {
       override fun onResponse(response: JSONObject?) {
-        EventEmitter().onRequestMetadata(workId, "onResponse", response.toString())
         if (isStopped) {
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED, "cancelled at request metadata state", 50)
           callback.cancel()
         } else {
           try {
@@ -113,17 +110,17 @@ class RequestMetadataWorker(
               Log.d("METADATA", "url: ${convertMetadata.url}")
               Log.d("METADATA", "filename: ${convertMetadata.filename}")
               Log.d("METADATA", "hash: ${convertMetadata.hashes}")
-              EventEmitter().onRequestMetadata(workId, "onGetMetadataSuccess", response.toString())
+              EventEmitter().onStateChange(workId, EventEmitter.STATE.REQUEST_METADATA, "get metadata success: $response", 50)
               startUploadWorker(convertMetadata, uploadUrl, chunkPaths, chunkSize, callback)
               callback.success()
             } else {
               Log.d("METADATA", "$response")
-              EventEmitter().onRequestMetadata(workId, "onGetMetadataError", "errorDetail: response status = 0")
+              EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED, "get metadata success with response status = 0", 40)
               callback.failure()
             }
           } catch (e: JSONException) {
             Log.e("METADATA", "JsonException", e)
-            EventEmitter().onRequestMetadata(workId, "onGetMetadataError", "errorDetail: JSON conversion exception")
+            EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED, "get metadata error: JSON conversion exception", 30)
             callback.failure()
           }
         }
@@ -136,7 +133,7 @@ class RequestMetadataWorker(
         } else {
           Log.e("METADATA", "onError errorDetail : " + anError.errorDetail)
         }
-        EventEmitter().onRequestMetadata(workId, "onGetMetadataError", "errorDetail: " + anError.errorDetail)
+        EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED, "get metadata error: " + anError.errorDetail, 20)
         callback.failure()
       }
     })
@@ -145,13 +142,13 @@ class RequestMetadataWorker(
   @SuppressLint("EnqueueWork")
   private fun startUploadWorker(data: VideoMetadata, uploadUrl: String, chunkPaths: Array<String>, chunkSize: Int, callback: RequestMetadataCallback) {
     if (isStopped) {
+      EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED, "cancelled at request metadata state", 60)
       callback.cancel()
     } else {
       try {
         val fileName = data.filename
         val hashMap = data.hashes
         if (hashMap != null && fileName != null) {
-          EventEmitter().onRequestMetadata(workId, "onSetupUploadTask", "")
           // create work tag from unique id
           val workTag = workId.toString()
           // init work manager
@@ -187,17 +184,20 @@ class RequestMetadataWorker(
             ).build()
           workContinuation = workContinuation?.then(clearRequest)
           if (isStopped) {
+            EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED, "create upload worker error: invalid file name and hashArray", 80)
             callback.cancel()
           } else {
-            EventEmitter().onRequestMetadata(workId, "onEnqueueUploadTask", "")
             workContinuation?.enqueue()
+            EventEmitter().onStateChange(workId, EventEmitter.STATE.REQUEST_METADATA, "create upload worker success", 100)
             callback.success()
           }
         } else {
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED, "create upload worker error: invalid file name and hashArray", 50)
           callback.failure()
         }
       } catch (e: Exception) {
         Log.e("METADATA", "startUploadWorker", e)
+        EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED, "create upload worker error: $e", 50)
         callback.failure()
       }
     }

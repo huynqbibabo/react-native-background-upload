@@ -13,18 +13,6 @@ export default function App() {
     BackgroundUpload.onStateChange((response) => {
       console.log('onStateChange: ', response);
     });
-    // BackgroundUpload.onRequestMetadata((response) => {
-    //   console.log('onRequestMetadata: ', response);
-    // });
-    // BackgroundUpload.onUploading((response) => {
-    //   console.log('onUploading: ', response);
-    // });
-    // BackgroundUpload.onTranscoding((response) => {
-    //   console.log('onTranscoding: ', response);
-    // });
-    BackgroundUpload.onCancelled((response) => {
-      console.log('onCancelled: ', response);
-    });
   }, []);
 
   const onPressStart = () => {

@@ -18,7 +18,7 @@ import org.json.JSONObject
 
 internal interface TaskCallback {
   fun success(response: String)
-  fun failure(response: String)
+  fun failure(message: String)
   fun cancel()
 }
 
@@ -31,19 +31,17 @@ class ClearProcessWorker(
 
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
-      EventEmitter().onStateChange(workId, EventEmitter.STATE.CHAIN_TASK)
       val callback: TaskCallback = object : TaskCallback {
         override fun success(response: String) {
-          EventEmitter().onStateChange(workId, EventEmitter.STATE.SUCCESS)
-          EventEmitter().onSuccess(workId, response)
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.SUCCESS, response, 100)
           mNotificationHelpers.startNotify(
             workId,
             mNotificationHelpers.getCompleteNotificationBuilder().build()
           )
           completer.set(Result.success())
         }
-        override fun failure(response: String) {
-          EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED)
+        override fun failure(message: String) {
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED, message, 0)
           mNotificationHelpers.startNotify(
             workId,
             mNotificationHelpers.getFailureNotificationBuilder().build()
@@ -51,7 +49,7 @@ class ClearProcessWorker(
           completer.set(Result.failure())
         }
         override fun cancel() {
-          EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED)
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED, "cancelled at chain task after upload", 0)
           mNotificationHelpers.startNotify(
             workId,
             mNotificationHelpers.getCancelNotificationBuilder().build()
@@ -69,6 +67,7 @@ class ClearProcessWorker(
         val fileName = inputData.getString(ModelClearTask.KEY_FILE_NAME)!!
 
         AndroidNetworking.post(url).apply {
+          setTag(workId)
           if (authorization != null) {
             addHeaders("Authorization", authorization)
           }
@@ -89,24 +88,28 @@ class ClearProcessWorker(
                 if (status == 1) {
                   callback.success(response.toString())
                 } else {
-                  callback.failure("errorDetail: response status = 0")
+                  callback.failure("chain task success with response status = 0")
                 }
               } catch (e: JSONException) {
                 Log.e("CHAIN_TASK", "JsonException", e)
-                callback.failure("errorDetail: JSON conversion exception")
+                callback.failure("chain task error: JSON conversion exception")
               }
             }
           }
           override fun onError(anError: ANError) {
-            Log.wtf("CHAIN_TASK", "$anError")
-            if (anError.errorCode != 0) {
-              Log.d("CHAIN_TASK", "onError errorCode : " + anError.errorCode)
-              Log.d("CHAIN_TASK", "onError errorBody : " + anError.errorBody)
-              Log.d("CHAIN_TASK", "onError errorDetail : " + anError.errorDetail)
+            if (!isStopped) {
+              Log.wtf("CHAIN_TASK", "$anError")
+              if (anError.errorCode != 0) {
+                Log.d("CHAIN_TASK", "onError errorCode : " + anError.errorCode)
+                Log.d("CHAIN_TASK", "onError errorBody : " + anError.errorBody)
+                Log.d("CHAIN_TASK", "onError errorDetail : " + anError.errorDetail)
+              } else {
+                Log.d("CHAIN_TASK", "onError errorDetail : " + anError.errorDetail)
+              }
+              callback.failure("chain task error: " + anError.errorDetail)
             } else {
-              Log.d("CHAIN_TASK", "onError errorDetail : " + anError.errorDetail)
+              callback.cancel()
             }
-            callback.failure("errorDetail : " + anError.errorDetail)
           }
         })
       } else {
@@ -118,10 +121,7 @@ class ClearProcessWorker(
   }
 
   override fun onStopped() {
-//    mNotificationHelpers.startNotify(
-//      notificationId,
-//      mNotificationHelpers.getFailureNotificationBuilder().build()
-//    )
     Log.d("METADATA", "stop")
+    AndroidNetworking.cancel(workId)
   }
 }

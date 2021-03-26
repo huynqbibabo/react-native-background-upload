@@ -21,9 +21,9 @@ import kotlin.math.roundToInt
 
 internal interface UploadCallback {
   fun success()
-  fun failure()
-  fun retry()
-  fun cancel()
+  fun failure(failureMessage: String, currentProgress: Int)
+  fun cancel(currentProgress: Int)
+//  fun retry()
 }
 
 class UploadWorker(
@@ -32,39 +32,36 @@ class UploadWorker(
 ) : ListenableWorker(context, params) {
   private val mNotificationHelpers = NotificationHelpers(applicationContext)
   private val workId = inputData.getInt(ModelUploadInput.KEY_WORK_ID, 1)
-  private var callback: UploadCallback? = null
 
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
-      EventEmitter().onStateChange(workId, EventEmitter.STATE.UPLOAD)
-      callback = object : UploadCallback {
+      val callback = object : UploadCallback {
         override fun success() {
           completer.set(Result.success())
         }
-        override fun failure() {
-          EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED)
+        override fun failure(failureMessage: String, currentProgress: Int) {
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED, failureMessage, currentProgress)
           mNotificationHelpers.startNotify(
             workId,
             mNotificationHelpers.getFailureNotificationBuilder().build()
           )
           completer.set(Result.failure())
         }
-        override fun cancel() {
-          EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED)
+        override fun cancel(currentProgress: Int) {
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED, "cancelled at upload state", currentProgress)
           mNotificationHelpers.startNotify(
             workId,
             mNotificationHelpers.getCancelNotificationBuilder().build()
           )
           completer.set(Result.failure())
         }
-        override fun retry() {
-          if (runAttemptCount > 1) {
-            completer.set(Result.failure())
-          } else {
-            EventEmitter().onStateChange(workId, EventEmitter.STATE.RETRY)
-            completer.set(Result.retry())
-          }
-        }
+//        override fun retry() {
+//          if (runAttemptCount > 1) {
+//            completer.set(Result.failure())
+//          } else {
+//            completer.set(Result.retry())
+//          }
+//        }
       }
 
       val requestUrl = inputData.getString(ModelUploadInput.KEY_REQUEST_URL)!!
@@ -74,22 +71,21 @@ class UploadWorker(
       val prt = inputData.getInt(ModelUploadInput.KEY_PRT, 0)
       val numberOfChunks = inputData.getInt(ModelUploadInput.KEY_NUMBER_OF_CHUNKS, 1)
 
-      uploadVideo(requestUrl, fileName, filePath, hash, prt, numberOfChunks, callback!!)
+      uploadVideo(requestUrl, fileName, filePath, hash, prt, numberOfChunks, callback)
       callback
     }
   }
 
   override fun onStopped() {
     AndroidNetworking.cancel(workId)
-    callback?.cancel()
     Log.d("UPLOAD", "stop")
   }
 
   @SuppressLint("CheckResult")
   private fun uploadVideo(requestUrl: String, fileName: String, filePath: String, hash: String, prt: Int, numberOfChunks: Int, callback: UploadCallback) {
-    EventEmitter().onUpload(workId, "onStart", 0, "start upload $prt/$numberOfChunks")
     val file = File(filePath)
-    val currentProgress = (prt - 1) * 100 / numberOfChunks
+    val initialProgress = (prt - 1) * 100 / numberOfChunks
+    var currentProgress = initialProgress
 
     // call upload api
     AndroidNetworking.upload(requestUrl).apply {
@@ -104,33 +100,30 @@ class UploadWorker(
         val percentage = (bytesUploaded * 100 / totalBytes).toDouble()
         val progress = (percentage / numberOfChunks + currentProgress).roundToInt()
 //      Log.d("UPLOAD", "progress: $progress")
-        if (progress <= 100 && progress % 5 == 0) {
-          EventEmitter().onUpload(workId, "onProgress", progress, "uploading $prt/$numberOfChunks")
+        if (progress <= 100 && progress % 5 == 0 && progress != currentProgress) {
+          currentProgress = progress
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.UPLOAD, "progress uploading $prt/$numberOfChunks", progress)
           mNotificationHelpers.startNotify(workId, mNotificationHelpers.getProgressNotificationBuilder(progress).build())
         }
       }
       // upload response or error
       getAsJSONObject(object : JSONObjectRequestListener {
         override fun onResponse(response: JSONObject?) {
-          EventEmitter().onUpload(workId, "onResponse", 100, response.toString())
           if (isStopped) {
-            callback.cancel()
+            callback.cancel(currentProgress)
           } else {
             Log.d("UPLOAD", "$response")
             try {
               val metadata = response?.get("data")
               val status = response?.get("status")
               if (metadata != null && status == 1) {
-                EventEmitter().onUpload(workId, "onSuccess", 100, "successfully upload $prt/$numberOfChunks")
                 callback.success()
               } else {
-                EventEmitter().onUpload(workId, "onError", 100, "errorDetail: response status = 0")
-                callback.failure()
+                callback.failure("upload $prt/$numberOfChunks success with response status = 0", currentProgress)
               }
             } catch (e: JSONException) {
               Log.e("UPLOAD", "JsonException", e)
-              EventEmitter().onUpload(workId, "onError", 100, "errorDetail: JSON conversion exception")
-              callback.failure()
+              callback.failure("upload $prt/$numberOfChunks error: JSON conversion exception", currentProgress)
             }
           }
         }
@@ -143,8 +136,9 @@ class UploadWorker(
             } else {
               Log.e("UPLOAD", "onError errorDetail : " + anError.errorDetail)
             }
-            EventEmitter().onUpload(workId, "onError", 0, "errorDetail: " + anError.errorDetail)
-            callback.failure()
+            callback.failure("upload $prt/$numberOfChunks error: " + anError.errorDetail, currentProgress)
+          } else {
+            callback.cancel(currentProgress)
           }
         }
       })

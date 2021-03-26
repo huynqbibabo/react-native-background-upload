@@ -22,32 +22,8 @@ export type State =
 export type StateChangeResponse = {
   workId: number;
   state: State;
-};
-
-export type TranscodingProcess = Omit<StateChangeResponse, 'state'> & {
+  response: string;
   progress: number;
-  status: string;
-};
-
-export type RequestMetaDataProcess = Omit<StateChangeResponse, 'state'> & {
-  response: string;
-  status: string;
-};
-
-export type UploadProcess = TranscodingProcess & {
-  response: string;
-};
-
-export type ChainTaskProcess = RequestMetaDataProcess;
-
-export type SuccessStateResponse = Omit<StateChangeResponse, 'state'>;
-
-export type FailureStateResponse = Omit<StateChangeResponse, 'state'> & {
-  error: string;
-};
-
-export type CancelledStateResponse = Omit<StateChangeResponse, 'state'> & {
-  previousState: State;
 };
 
 export type NetworkTask = {

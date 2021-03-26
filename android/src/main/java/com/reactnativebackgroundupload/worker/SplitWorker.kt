@@ -19,18 +19,18 @@ class SplitWorker(
   private val mNotificationHelpers = NotificationHelpers(applicationContext)
   private val workId = inputData.getInt(ModelTranscodeInput.KEY_WORK_ID, 1)
 
-  override fun onStopped() {
+//  override fun onStopped() {
 //    mNotificationHelpers.startNotify(
 //      notificationId,
 //      mNotificationHelpers.getFailureNotificationBuilder().build()
 //    )
-    Log.d("METADATA", "stop")
-  }
+//    Log.d("METADATA", "stop")
+//  }
 
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
       try {
-        EventEmitter().onStateChange(workId, EventEmitter.STATE.SPLIT)
+        EventEmitter().onStateChange(workId, EventEmitter.STATE.SPLIT, "start", 0)
         var chunkSize = inputData.getInt(ModelTranscodeInput.KEY_CHUNK_SIZE, ModelTranscodeInput.DEFAULT_CHUNK_SIZE)
         val filePath = inputData.getString(ModelTranscodeInput.KEY_FILE_PATH)!!
 
@@ -48,7 +48,7 @@ class SplitWorker(
         }
 
         // check whether to split video into chunks or not
-        if (fileSize > chunkSize && !isStopped) {
+        if (fileSize > chunkSize) {
           // split file into chunks and add paths to result array
           var partCounter = 1
           val buffer = ByteArray(chunkSize) // create a buffer of bytes sized as the one chunk size
@@ -69,7 +69,7 @@ class SplitWorker(
           result.add(filePath)
         }
         if (isStopped) {
-          EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED)
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED, "cancelled at split state", 0)
           mNotificationHelpers.startNotify(
             workId,
             mNotificationHelpers.getCancelNotificationBuilder().build()
@@ -82,7 +82,7 @@ class SplitWorker(
         }
       } catch (e: IOException) {
         Log.e("SPLIT", "IOException", e)
-        EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED)
+        EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED, "IOException at split state", 0)
         mNotificationHelpers.startNotify(
           workId,
           mNotificationHelpers.getFailureNotificationBuilder().build()
