@@ -1,12 +1,4 @@
-export type Event =
-  | 'onStateChange'
-  | 'onTranscoding'
-  | 'onRequestMetadata'
-  | 'onUploading'
-  | 'onChainTask'
-  | 'onSuccess'
-  | 'onFailure'
-  | 'onCancelled';
+export type Event = 'onStateChange';
 
 export type State =
   | 'idle'
