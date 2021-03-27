@@ -8,7 +8,8 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
 class EventEmitter {
   companion object {
     var reactContext: ReactApplicationContext? = null
-    var stateMap = HashMap<Int, WritableMap>()
+    var stateMap = HashMap<Int, String>()
+    var responseMap = HashMap<Int, String>()
   }
 
   object EVENT {
@@ -40,7 +41,10 @@ class EventEmitter {
   }
 
   fun getCurrentState(workId: Int): WritableMap? {
-    return stateMap[workId]
+    val params = Arguments.createMap()
+    params.putString("state", stateMap[workId])
+    params.putString("response", responseMap[workId])
+    return params
   }
 
   fun onStateChange(workId: Int, state: String, response: String, progress: Int) {
@@ -50,7 +54,8 @@ class EventEmitter {
     params.putString("response", response)
     params.putInt("progress", progress)
 //    sendJSEvent(EVENT.onStateChange, params)
-    stateMap[workId] = params
+    stateMap[workId] = state
+    responseMap[workId] = response
     reactContext
       ?.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
       ?.emit(EVENT.onStateChange, params)

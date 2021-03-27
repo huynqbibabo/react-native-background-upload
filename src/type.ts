@@ -19,10 +19,13 @@ export type State =
   | 'failed'
   | 'cancelled';
 
-export type StateChangeResponse = {
-  workId: number;
+export type CurrentStateInfo = {
   state: State;
   response: string;
+};
+
+export type StateChangeResponse = CurrentStateInfo & {
+  workId: number;
   progress: number;
 };
 
