@@ -12,6 +12,7 @@ import com.androidnetworking.error.ANError
 import com.androidnetworking.interfaces.JSONObjectRequestListener
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.gson.Gson
+import com.reactnativebackgroundupload.EventEmitter
 import com.reactnativebackgroundupload.NotificationHelpers
 import com.reactnativebackgroundupload.model.*
 import org.json.JSONException
@@ -21,6 +22,7 @@ import java.util.concurrent.TimeUnit
 internal interface RequestMetadataCallback {
   fun success()
   fun failure()
+  fun cancel()
 }
 
 class RequestMetadataWorker(
@@ -28,10 +30,11 @@ class RequestMetadataWorker(
   params: WorkerParameters
 ) : ListenableWorker(context, params) {
   private val mNotificationHelpers = NotificationHelpers(applicationContext)
+  private val workId = inputData.getInt(ModelRequestMetadata.KEY_WORK_ID, 1)
 
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
-      val notificationId = inputData.getInt(ModelRequestMetadata.KEY_NOTIFICATION_ID, 1)
+      EventEmitter().onStateChange(workId, EventEmitter.STATE.REQUEST_METADATA, "start", 0)
       val chunkPaths = inputData.getStringArray(ModelRequestMetadata.KEY_CHUNK_PATH_ARRAY)!!
 
       val callback: RequestMetadataCallback = object : RequestMetadataCallback {
@@ -41,10 +44,17 @@ class RequestMetadataWorker(
         }
         override fun failure() {
           mNotificationHelpers.startNotify(
-            notificationId,
+            workId,
             mNotificationHelpers.getFailureNotificationBuilder().build()
           )
           clearCache(chunkPaths)
+          completer.set(Result.failure())
+        }
+        override fun cancel() {
+          mNotificationHelpers.startNotify(
+            workId,
+            mNotificationHelpers.getCancelNotificationBuilder().build()
+          )
           completer.set(Result.failure())
         }
 //        override fun retry() {
@@ -57,44 +67,62 @@ class RequestMetadataWorker(
       }
       val uploadUrl = inputData.getString(ModelRequestMetadata.KEY_UPLOAD_URL)!!
       val metadataUrl = inputData.getString(ModelRequestMetadata.KEY_METADATA_URL)!!
-      requestMetadata(metadataUrl, uploadUrl, chunkPaths, notificationId, callback)
+      requestMetadata(metadataUrl, uploadUrl, chunkPaths, callback)
       callback
     }
   }
+
+//  override fun onStopped() {
+//    mNotificationHelpers.startNotify(
+//      notificationId,
+//      mNotificationHelpers.getFailureNotificationBuilder().build()
+//    )
+//    Log.d("METADATA", "stop")
+//  }
 
   @RequiresApi(Build.VERSION_CODES.GINGERBREAD)
   private fun clearCache(chunkPaths: Array<String>) {
     val workManager = WorkManager.getInstance(applicationContext)
     val clearCacheRequest = OneTimeWorkRequestBuilder<ClearCacheWorker>()
       .setInputData(ModelClearCache().createInputDataForClearCache(chunkPaths))
-      .setInitialDelay(6, TimeUnit.HOURS)
+      .setInitialDelay(30, TimeUnit.MINUTES)
       .build()
     workManager.enqueue(clearCacheRequest)
   }
 
-  private fun requestMetadata(metadataUrl: String, uploadUrl: String, chunkPaths: Array<String>, notificationId: Int, callback: RequestMetadataCallback) {
+  private fun requestMetadata(metadataUrl: String, uploadUrl: String, chunkPaths: Array<String>, callback: RequestMetadataCallback) {
     val chunkSize = chunkPaths.size
     AndroidNetworking.post(metadataUrl).apply {
       addBodyParameter("cto", "$chunkSize")
       addBodyParameter("ext", "mp4")
     }.build().getAsJSONObject(object : JSONObjectRequestListener {
       override fun onResponse(response: JSONObject?) {
-        try {
-          val metadata = response?.getJSONObject("data")
-          val status = response?.get("status")
-          if (metadata != null && status == 1) {
-            val gson = Gson()
-            val convertMetadata = gson.fromJson(metadata.toString(), VideoMetadata::class.java)
-            Log.d("METADATA", "${convertMetadata.hashes}")
-            startUploadWorker(convertMetadata, uploadUrl, chunkPaths, chunkSize, notificationId, callback)
-            callback.success()
-          } else {
-            Log.d("METADATA", "$response")
+        if (isStopped) {
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED, "cancelled at request metadata state", 50)
+          callback.cancel()
+        } else {
+          try {
+            val metadata = response?.getJSONObject("data")
+            val status = response?.get("status")
+            if (metadata != null && status == 1) {
+              val gson = Gson()
+              val convertMetadata = gson.fromJson(metadata.toString(), VideoMetadata::class.java)
+              Log.d("METADATA", "url: ${convertMetadata.url}")
+              Log.d("METADATA", "filename: ${convertMetadata.filename}")
+              Log.d("METADATA", "hash: ${convertMetadata.hashes}")
+              EventEmitter().onStateChange(workId, EventEmitter.STATE.REQUEST_METADATA, "get metadata success: $response", 50)
+              startUploadWorker(convertMetadata, uploadUrl, chunkPaths, chunkSize, callback)
+              callback.success()
+            } else {
+              Log.d("METADATA", "$response")
+              EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED, "get metadata success with response status = 0", 40)
+              callback.failure()
+            }
+          } catch (e: JSONException) {
+            Log.e("METADATA", "JsonException", e)
+            EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED, "get metadata error: JSON conversion exception", 30)
             callback.failure()
           }
-        } catch (e: JSONException) {
-          Log.e("METADATA", "JsonException", e)
-          callback.failure()
         }
       }
       override fun onError(anError: ANError) {
@@ -105,55 +133,73 @@ class RequestMetadataWorker(
         } else {
           Log.e("METADATA", "onError errorDetail : " + anError.errorDetail)
         }
+        EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED, "get metadata error: " + anError.errorDetail, 20)
         callback.failure()
       }
     })
   }
 
   @SuppressLint("EnqueueWork")
-  private fun startUploadWorker(data: VideoMetadata, uploadUrl: String, chunkPaths: Array<String>, chunkSize: Int, notificationId: Int, callback: RequestMetadataCallback) {
-    try {
+  private fun startUploadWorker(data: VideoMetadata, uploadUrl: String, chunkPaths: Array<String>, chunkSize: Int, callback: RequestMetadataCallback) {
+    if (isStopped) {
+      EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED, "cancelled at request metadata state", 60)
+      callback.cancel()
+    } else {
+      try {
+        val fileName = data.filename
+        val hashMap = data.hashes
+        if (hashMap != null && fileName != null) {
+          // create work tag from unique id
+          val workTag = workId.toString()
+          // init work manager
+          val workManager = WorkManager.getInstance(applicationContext)
+          val workConstraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED) // constraints worker with network condition
+            .build()
+          var workContinuation: WorkContinuation? = null
 
-      val fileName = data.filename
-      val hashMap = data.hashes
-      if (hashMap != null && fileName != null) {
-        // init work manager
-        val workManager = WorkManager.getInstance(applicationContext)
-        val workConstraints = Constraints.Builder()
-          .setRequiredNetworkType(NetworkType.CONNECTED) // constraints worker with network condition
-          .build()
-        var workContinuation: WorkContinuation? = null
-
-        // add upload worker to queue
-        for ((key, value) in hashMap) {
-          val prt = key.toInt()
-          val uploadRequest = OneTimeWorkRequestBuilder<UploadWorker>().apply {
-            setConstraints(workConstraints)
-            setInputData(
-              ModelUploadInput().createInputDataForUpload(uploadUrl, fileName, chunkPaths[prt - 1], value, prt, chunkSize, notificationId)
-            )
-          }.build()
-          workContinuation = workContinuation?.then(uploadRequest)
-            ?: workManager.beginWith(uploadRequest)
+          // add upload worker to queue
+          for ((key, value) in hashMap) {
+            val prt = key.toInt()
+            val uploadRequest = OneTimeWorkRequestBuilder<UploadWorker>().apply {
+              setConstraints(workConstraints)
+              setInputData(
+                ModelUploadInput().createInputDataForUpload(uploadUrl, fileName, chunkPaths[prt - 1], value, prt, chunkSize, workId)
+              )
+              addTag(workTag)
+            }.build()
+            workContinuation = workContinuation?.then(uploadRequest)
+              ?: workManager.beginWith(uploadRequest)
+          }
+          // add clean up work
+          val url = inputData.getString(ModelRequestMetadata.KEY_CHAIN_URL)
+          val method = inputData.getString(ModelRequestMetadata.KEY_METHOD)
+          val authorization = inputData.getString(ModelRequestMetadata.KEY_AUTHORIZATION)
+          val chainData = inputData.getString(ModelRequestMetadata.KEY_DATA)
+          val clearRequest = OneTimeWorkRequestBuilder<ClearProcessWorker>()
+            .addTag(workTag)
+            .setInitialDelay(5, TimeUnit.SECONDS)
+            .setInputData(
+              ModelClearTask().createInputDataForClearTask(workId, fileName, url, method, authorization, chainData)
+            ).build()
+          workContinuation = workContinuation?.then(clearRequest)
+          if (isStopped) {
+            EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED, "create upload worker error: invalid file name and hashArray", 80)
+            callback.cancel()
+          } else {
+            workContinuation?.enqueue()
+            EventEmitter().onStateChange(workId, EventEmitter.STATE.REQUEST_METADATA, "create upload worker success", 100)
+            callback.success()
+          }
+        } else {
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED, "create upload worker error: invalid file name and hashArray", 50)
+          callback.failure()
         }
-        // add clean up work
-        val url = inputData.getString(ModelRequestMetadata.KEY_CHAIN_URL)
-        val method = inputData.getString(ModelRequestMetadata.KEY_METHOD)
-        val authorization = inputData.getString(ModelRequestMetadata.KEY_AUTHORIZATION)
-        val chainData = inputData.getString(ModelRequestMetadata.KEY_DATA)
-        val clearRequest = OneTimeWorkRequestBuilder<ClearProcessWorker>()
-          .setInputData(
-            ModelClearTask().createInputDataForClearTask(notificationId, fileName, url, method, authorization, chainData)
-          ).build()
-        workContinuation = workContinuation?.then(clearRequest)
-        workContinuation?.enqueue()
-        callback.success()
-      } else {
+      } catch (e: Exception) {
+        Log.e("METADATA", "startUploadWorker", e)
+        EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED, "create upload worker error: $e", 50)
         callback.failure()
       }
-    } catch (e: Exception) {
-      Log.e("METADATA", "startUploadWorker", e)
-      callback.failure()
     }
   }
 }

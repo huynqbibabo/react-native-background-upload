@@ -9,14 +9,17 @@ import com.androidnetworking.AndroidNetworking
 import com.androidnetworking.error.ANError
 import com.androidnetworking.interfaces.JSONObjectRequestListener
 import com.google.common.util.concurrent.ListenableFuture
+import com.reactnativebackgroundupload.EventEmitter
 import com.reactnativebackgroundupload.NotificationHelpers
 import com.reactnativebackgroundupload.model.ModelClearTask
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 
 internal interface TaskCallback {
-  fun success()
-  fun failure()
+  fun success(response: String)
+  fun failure(message: String)
+  fun cancel()
 }
 
 class ClearProcessWorker(
@@ -24,23 +27,32 @@ class ClearProcessWorker(
   params: WorkerParameters
 ) : ListenableWorker(context, params) {
   private val mNotificationHelpers = NotificationHelpers(applicationContext)
+  private val workId = inputData.getInt(ModelClearTask.KEY_WORK_ID, 1)
 
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
-      val notificationId = inputData.getInt(ModelClearTask.KEY_NOTIFICATION_ID, 1)
-
       val callback: TaskCallback = object : TaskCallback {
-        override fun success() {
+        override fun success(response: String) {
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.SUCCESS, response, 100)
           mNotificationHelpers.startNotify(
-            notificationId,
+            workId,
             mNotificationHelpers.getCompleteNotificationBuilder().build()
           )
           completer.set(Result.success())
         }
-        override fun failure() {
+        override fun failure(message: String) {
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED, message, 0)
           mNotificationHelpers.startNotify(
-            notificationId,
+            workId,
             mNotificationHelpers.getFailureNotificationBuilder().build()
+          )
+          completer.set(Result.failure())
+        }
+        override fun cancel() {
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED, "cancelled at chain task after upload", 0)
+          mNotificationHelpers.startNotify(
+            workId,
+            mNotificationHelpers.getCancelNotificationBuilder().build()
           )
           completer.set(Result.failure())
         }
@@ -55,40 +67,61 @@ class ClearProcessWorker(
         val fileName = inputData.getString(ModelClearTask.KEY_FILE_NAME)!!
 
         AndroidNetworking.post(url).apply {
+          setTag(workId)
           if (authorization != null) {
             addHeaders("Authorization", authorization)
           }
           if (chainData != null) {
-            val videoObject = JSONObject()
-            videoObject.put("name", fileName)
-            val videoArray = JSONArray()
-            videoArray.put(videoObject)
-            val chainDataObject = JSONObject(chainData)
-            chainDataObject.put("videos", videoArray)
+            val videoObject = JSONObject().put("name", fileName)
+            val videoArray = JSONArray().put(videoObject)
+            val chainDataObject = JSONObject(chainData).put("videos", videoArray)
             addJSONObjectBody(chainDataObject)
           }
         }.build().getAsJSONObject(object : JSONObjectRequestListener {
           override fun onResponse(response: JSONObject?) {
-            Log.d("CHAIN", "$response")
-            callback.success()
+            if (isStopped) {
+              callback.cancel()
+            } else {
+              Log.d("CHAIN_TASK", "$response")
+              try {
+                val status = response?.get("status")
+                if (status == 1) {
+                  callback.success(response.toString())
+                } else {
+                  callback.failure("chain task success with response status = 0")
+                }
+              } catch (e: JSONException) {
+                Log.e("CHAIN_TASK", "JsonException", e)
+                callback.failure("chain task error: JSON conversion exception")
+              }
+            }
           }
           override fun onError(anError: ANError) {
-            Log.wtf("CHAIN", "$anError")
-            if (anError.errorCode != 0) {
-              Log.d("CHAIN", "onError errorCode : " + anError.errorCode)
-              Log.d("CHAIN", "onError errorBody : " + anError.errorBody)
-              Log.d("CHAIN", "onError errorDetail : " + anError.errorDetail)
+            if (!isStopped) {
+              Log.wtf("CHAIN_TASK", "$anError")
+              if (anError.errorCode != 0) {
+                Log.d("CHAIN_TASK", "onError errorCode : " + anError.errorCode)
+                Log.d("CHAIN_TASK", "onError errorBody : " + anError.errorBody)
+                Log.d("CHAIN_TASK", "onError errorDetail : " + anError.errorDetail)
+              } else {
+                Log.d("CHAIN_TASK", "onError errorDetail : " + anError.errorDetail)
+              }
+              callback.failure("chain task error: " + anError.errorDetail)
             } else {
-              Log.d("CHAIN", "onError errorDetail : " + anError.errorDetail)
+              callback.cancel()
             }
-            callback.failure()
           }
         })
       } else {
-        Log.d("CHAIN", "success")
-        callback.success()
+        Log.d("CHAIN_TASK", "complete with no chain task")
+        callback.success("complete with no chain task")
       }
       callback
     }
+  }
+
+  override fun onStopped() {
+    Log.d("METADATA", "stop")
+    AndroidNetworking.cancel(workId)
   }
 }
