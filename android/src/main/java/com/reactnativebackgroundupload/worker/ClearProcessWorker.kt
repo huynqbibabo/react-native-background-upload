@@ -86,7 +86,7 @@ class ClearProcessWorker(
               try {
                 val status = response?.get("status")
                 if (status == 1) {
-                  callback.success(response.toString())
+                  callback.success(response.getJSONObject("data").toString())
                 } else {
                   callback.failure("chain task success with response status = 0")
                 }

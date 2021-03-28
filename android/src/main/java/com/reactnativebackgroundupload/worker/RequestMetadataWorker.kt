@@ -110,7 +110,7 @@ class RequestMetadataWorker(
               Log.d("METADATA", "url: ${convertMetadata.url}")
               Log.d("METADATA", "filename: ${convertMetadata.filename}")
               Log.d("METADATA", "hash: ${convertMetadata.hashes}")
-              EventEmitter().onStateChange(workId, EventEmitter.STATE.REQUEST_METADATA, "get metadata success: $response", 50)
+              EventEmitter().onStateChange(workId, EventEmitter.STATE.REQUEST_METADATA, "$response", 50)
               startUploadWorker(convertMetadata, uploadUrl, chunkPaths, chunkSize, callback)
               callback.success()
             } else {
