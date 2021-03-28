@@ -9,6 +9,11 @@
   bool hasListeners;
 }
 
+- (dispatch_queue_t)methodQueue
+{
+    return dispatch_get_main_queue();
+}
+
 - (NSArray<NSString *> *)supportedEvents {
     return @[@"onStateChange"];
 }
@@ -25,13 +30,14 @@
     // Remove upstream listeners, stop unnecessary background tasks
 }
 
--(void)onStateChange:(NSNumber * _Nonnull)workId {
+-(void)onStateChange:(NSNumber * _Nonnull)workId state:(NSString * _Nonnull)state response:(NSString * _Nonnull)response progress:(NSNumber * _Nonnull)progress {
+    [_stateMap setValue:@{@"state": state, @"response": response} forKey:[workId stringValue]];
     if (hasListeners) {
         [self sendEventWithName:@"onStateChange" body:@{
             @"workId": workId,
-            @"state": @"request metadata",
-            @"response": @"request metadata",
-            @"progress": @100
+            @"state": state,
+            @"response": response,
+            @"progress": progress
         }];
     }
 }
@@ -45,10 +51,11 @@ RCT_EXPORT_METHOD(stopBackgroundUpload:(NSNumber * _Nonnull)workId resolver:(RCT
 
 // Will be call to get the current state of video uplaoding process
 RCT_EXPORT_METHOD(getCurrentState:(NSNumber * _Nonnull)workId resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject){
-    resolve(@{
-        @"state": @"request metadata",
-        @"response": @"request metadata",
-    });
+    @try {
+        resolve([_stateMap objectForKey:[workId stringValue]]);
+    } @catch (NSException *exception) {
+        reject(@"RN Background upload", exception.reason, nil);
+    }
 }
 
 // Will be call to start upload video
@@ -57,32 +64,41 @@ RCT_EXPORT_METHOD(startBackgroundUploadVideo:(NSNumber * _Nonnull)workId
                   metadataUrl:(NSString * _Nonnull)metadataUrl
                   filePath:(NSString * _Nonnull)filePath
                   chunkSize:(NSNumber * _Nonnull)chunkSize
-                  enableCompression:(BOOL * _Nonnull)enableCompression
+                  enableCompression:(NSNumber * _Nonnull)enableCompression
                   chainTask:(NSDictionary * _Nullable)chainTask
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject
 ){
     [self startObserving];
-    NSLog(@"filePath: %@", filePath);
-    NSMutableString *compressedPath = [[NSMutableString alloc] init];
+    [self onStateChange:workId state:StateIdle response:@"setup background work queue" progress:@0];
+    // init array to save chunk file path after split
     NSMutableArray *chunks = [[NSMutableArray alloc] init];
-    [[[[[self transcodeVideo:filePath enableCompression:enableCompression] continueWithBlock:^id _Nullable(BFTask* _Nonnull task) {
+    
+    // init session manager for network task
+    AFURLSessionManager *manager = [[AFURLSessionManager alloc] initWithSessionConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration]];
+    
+    // start upload queue
+    [[[[[self transcodeVideo:workId filePath:filePath enableCompression:enableCompression] continueWithBlock:^id _Nullable(BFTask* _Nonnull task) {
         if (task.error != nil) {
             NSLog(@"Compress video error: %@", task.error);
+            return [self splitVideoIntoChunks:workId transcodedFilePath:filePath originalFilePath:filePath chunkSize:chunkSize];
+        }
+        NSLog(@"Compress video path: %@", task.result);
+        return [self splitVideoIntoChunks:workId transcodedFilePath:task.result originalFilePath:filePath chunkSize:chunkSize];
+    }] continueWithBlock:^id _Nullable(BFTask* _Nonnull task) {
+        if (task.error != nil) {
+            NSLog(@"Split chunk error: %@", task.error.localizedDescription);
+            [self onStateChange:workId state:StateFailed response:task.error.localizedDescription progress:@0];
             [self stopObserving];
             return nil;
         }
-        NSLog(@"Compress video path: %@", task.result);
-        // set compressed video path
-        [compressedPath appendString:task.result];
-        return [self splitVideoIntoChunks: compressedPath chunkSize:chunkSize];
-    }] continueWithSuccessBlock:^id _Nullable(BFTask* _Nonnull task) {
-        NSLog(@"Split video response: %@", task.result);
+//        NSLog(@"Split video response: %@", task.result);
         [chunks addObjectsFromArray:task.result];
-        return [self requestMetadata:metadataUrl numberOfChunks:[NSNumber numberWithInteger:[chunks count]]];
+        return [self requestMetadata:workId metadataUrl:metadataUrl numberOfChunks:[NSNumber numberWithInteger:[chunks count]] sessionManager:manager];
     }] continueWithBlock:^id _Nullable(BFTask* _Nonnull task) {
         if (task.error != nil) {
             NSLog(@"Metadata error: %@", task.error.localizedDescription);
+            [self onStateChange:workId state:StateFailed response:task.error.localizedDescription progress:@0];
             [self stopObserving];
             return nil;
         }
@@ -92,31 +108,48 @@ RCT_EXPORT_METHOD(startBackgroundUploadVideo:(NSNumber * _Nonnull)workId
         
         // Create a trivial completed task as a base case.
         BFTask *uploadTask = [BFTask taskWithResult:nil];
-        for(id key in hashes) {
-            NSLog(@"Key:%@ Value:%@", key, hashes[key]);
+        for (int i = 0; i < [chunks count]; i++) {
             uploadTask = [uploadTask continueWithBlock:^id(BFTask *task) {
                 // Return a task that will be marked as completed when the upload is finished.
-                int index = [key intValue] - 1;
-                return [self uploadVideoChunk:uploadUrl fileData:[chunks objectAtIndex:(NSInteger) index] fileName:fileName hash:hashes[key] prt:key];
+                NSString *prt = [@(i + 1) stringValue];
+                return [self uploadVideoChunk:workId uploadUrl:uploadUrl filePath:chunks[i] fileName:fileName hash:[hashes objectForKey:prt] prt:prt numberOfChunks:[NSNumber numberWithInteger:[chunks count]] sessionManager:manager];
             }];
         }
         return uploadTask;
     }] continueWithBlock:^id _Nullable(BFTask* _Nonnull task) {
         if (task.error != nil) {
             NSLog(@"Upload error: %@", task.error.localizedDescription);
+            [self onStateChange:workId state:StateFailed response:task.error.localizedDescription progress:@0];
             [self stopObserving];
+            // clear cache
+            for (NSString *path in chunks) {
+                [self cleanUpCache:path];
+            }
             return nil;
         }
-        NSLog(@"Upload response: %@", task.result);
+        if (chainTask) {
+            
+        } else {
+            [self onStateChange:workId state:StateSuccess response:@"complete with no chain task" progress:@100];
+        }
+        
+        // clear cache
+        for (NSString *path in chunks) {
+            [self cleanUpCache:path];
+        }
+        [self stopObserving];
         return task;
     }];
     resolve(workId);
 }
 
 // Method to transcode video
--(BFTask *) transcodeVideo:(NSString * _Nonnull)filePath enableCompression:(BOOL * _Nonnull)enableCompression {
+-(BFTask *) transcodeVideo:(NSNumber * _Nonnull)workId filePath:(NSString * _Nonnull)filePath enableCompression:(NSNumber * _Nonnull)enableCompression {
     BFTaskCompletionSource *completionSource = [BFTaskCompletionSource taskCompletionSource];
-    if (enableCompression) {
+    
+    [self onStateChange:workId state:StateTranscoding response:@"start" progress:@0];
+    
+    if ([enableCompression boolValue] == YES) {
         @try {
             filePath = [filePath stringByReplacingOccurrencesOfString:@"file://" withString:@""];
             NSString *preset = AVAssetExportPreset1280x720;
@@ -134,9 +167,18 @@ RCT_EXPORT_METHOD(startBackgroundUploadVideo:(NSNumber * _Nonnull)workId
             exportSession.shouldOptimizeForNetworkUse = YES;
             exportSession.outputURL = outputURL;
             exportSession.outputFileType = AVFileTypeMPEG4;
+            
+            __block NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:2 repeats:YES block:^(NSTimer * _Nonnull timer) {
+                NSLog(@"Transcode progress: %f", exportSession.progress);
+                float progress = roundf(100 * exportSession.progress);
+                [self onStateChange:workId state:StateTranscoding response:@"progress" progress:[NSNumber numberWithFloat:progress]];
+            }];
                     
             [exportSession exportAsynchronouslyWithCompletionHandler:^(void) {
+                [timer invalidate];
+                timer = nil;
                 if (exportSession.status == AVAssetExportSessionStatusCompleted) {
+                    [self onStateChange:workId state:StateTranscoding response:@"success" progress:@100];
                     [completionSource setResult:outputFilePath];
                 } else {
                     [completionSource setError:[self customNSError:@"Cannot compress video"]];
@@ -146,27 +188,41 @@ RCT_EXPORT_METHOD(startBackgroundUploadVideo:(NSNumber * _Nonnull)workId
             [completionSource setError:[self customNSError:e.reason]];
         }
     } else {
+        [self onStateChange:workId state:StateTranscoding response:@"start" progress:@0];
         [completionSource setResult:[filePath stringByReplacingOccurrencesOfString:@"file://" withString:@""]];
     }
     return completionSource.task;
 }
 
 // Method to split video into chunks
--(BFTask *) splitVideoIntoChunks:(NSString * _Nonnull)filePath chunkSize:(NSNumber * _Nonnull)chunkSize {
+-(BFTask *) splitVideoIntoChunks:(NSNumber * _Nonnull)workId transcodedFilePath:(NSString * _Nonnull)transcodedFilePath originalFilePath:(NSString * _Nonnull)originalFilePath chunkSize:(NSNumber * _Nonnull)chunkSize {
     BFTaskCompletionSource *completionSource = [BFTaskCompletionSource taskCompletionSource];
+    
+    [self onStateChange:workId state:StateSplitting response:@"start" progress:@0];
+    
     @try {
-        if([[NSFileManager defaultManager] fileExistsAtPath:filePath]) {
+        if([[NSFileManager defaultManager] fileExistsAtPath:transcodedFilePath]) {
+            NSString* tempDirectory = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) lastObject];
+            
             NSMutableArray *chunkArray= [[NSMutableArray alloc]init];
-            NSData *data = [[NSFileManager defaultManager] contentsAtPath:filePath];
+            NSData *data = [[NSFileManager defaultManager] contentsAtPath:transcodedFilePath];
             NSUInteger length = [data length];
-            NSUInteger chunkSizeInt = [chunkSize integerValue];
+            NSUInteger chunkSizeInt = length > 104857600 ? 10485760 : [chunkSize integerValue];
             NSUInteger offset = 0;
             do {
                 NSUInteger thisChunkSize = length - offset > chunkSizeInt ? chunkSizeInt : length - offset;
-                NSData* chunk = [NSData dataWithBytesNoCopy:(char *)[data bytes] + offset length:thisChunkSize freeWhenDone:NO];
-                [chunkArray addObject:chunk];
+                NSData *chunk = [NSData dataWithBytesNoCopy:(char *)[data bytes] + offset length:thisChunkSize freeWhenDone:NO];
+                NSString *chunkPath = [tempDirectory stringByAppendingPathComponent: [NSString stringWithFormat:@"%@", [[NSProcessInfo processInfo] globallyUniqueString]]];
+                [chunk writeToFile:chunkPath atomically:YES];
+                [chunkArray addObject:[chunkPath stringByReplacingOccurrencesOfString:@"file://" withString:@""]];
                 offset += thisChunkSize;
             } while (offset < length);
+            
+            // clear cache
+            if ([transcodedFilePath isEqualToString:originalFilePath]) {
+                [self cleanUpCache:transcodedFilePath];
+            }
+            
             [completionSource setResult:chunkArray];
         } else {
             [completionSource setError:[self customNSError:@"File doesn't exits"]];
@@ -178,8 +234,11 @@ RCT_EXPORT_METHOD(startBackgroundUploadVideo:(NSNumber * _Nonnull)workId
 }
 
 // Method to request metadata for upload media file.
--(BFTask *) requestMetadata:(NSString * _Nonnull)metadataUrl numberOfChunks:(NSNumber * _Nonnull)numberOfChunks {
+-(BFTask *) requestMetadata:(NSNumber * _Nonnull)workId metadataUrl:(NSString * _Nonnull)metadataUrl numberOfChunks:(NSNumber * _Nonnull)numberOfChunks sessionManager:(AFURLSessionManager *)manager {
     BFTaskCompletionSource *completionSource = [BFTaskCompletionSource taskCompletionSource];
+    
+    [self onStateChange:workId state:StateRequestMetadata response:@"start" progress:@0];
+    
     @try {
         NSDictionary* requestMetadataPostDictionary = @{
             @"cto": [numberOfChunks stringValue],
@@ -187,17 +246,16 @@ RCT_EXPORT_METHOD(startBackgroundUploadVideo:(NSNumber * _Nonnull)workId
         };
         NSMutableURLRequest *request = [[AFHTTPRequestSerializer serializer] requestWithMethod:@"POST" URLString:metadataUrl parameters:(NSDictionary *)requestMetadataPostDictionary error:nil];
 
-        AFURLSessionManager *manager = [[AFURLSessionManager alloc] initWithSessionConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration]];
-
         NSURLSessionDataTask *dataTask = [manager dataTaskWithRequest:request uploadProgress:nil downloadProgress:nil completionHandler:^(NSURLResponse * _Nonnull response, id _Nullable responseObject, NSError * _Nullable error) {
             if (error) {
                 [completionSource setError:error];
             } else if ([responseObject isKindOfClass:[NSDictionary class]]) {
-                //            NSLog(@"response: %@", responseObject[@"status"]);
-                //            NSLog(@"response: %@", responseObject[@"message"]);
+                //    NSLog(@"response: %@", responseObject[@"status"]);
+                //    NSLog(@"response: %@", responseObject[@"message"]);
                 NSLog(@"response: %@", responseObject[@"data"]);
                 NSNumber *status  = [responseObject objectForKey:@"status"];
                 if ([status intValue] == 1) {
+                    [self onStateChange:workId state:StateRequestMetadata response:[self convertJsonStringFromNSDictionary:responseObject] progress:@100];
                     [completionSource setResult:(NSDictionary*)[responseObject objectForKey:@"data"]];
                 } else {
                     [completionSource setError:[self customNSError:@"Response status = 0 when request metadata"]];
@@ -214,23 +272,25 @@ RCT_EXPORT_METHOD(startBackgroundUploadVideo:(NSNumber * _Nonnull)workId
 }
 
 // Method to upload video by chunks
--(BFTask *) uploadVideoChunk:(NSString * _Nonnull)uploadUrl fileData:(NSData * _Nonnull)fileData fileName:(NSString * _Nonnull)fileName hash:(NSString * _Nonnull)hash prt:(NSString * _Nonnull)prt {
+-(BFTask *) uploadVideoChunk:(NSNumber * _Nonnull)workId uploadUrl:(NSString * _Nonnull)uploadUrl filePath:(NSString * _Nonnull)filePath fileName:(NSString * _Nonnull)fileName hash:(NSString * _Nonnull)hash prt:(NSString * _Nonnull)prt numberOfChunks:(NSNumber * _Nonnull)numberOfChunks sessionManager:(AFURLSessionManager *)manager {
     BFTaskCompletionSource *completionSource = [BFTaskCompletionSource taskCompletionSource];
     @try {
+//        int initialProgress = ([prt intValue] - 1) * 100 / [numberOfChunks intValue];
+//        NSString *eventEmitterResponse = [NSString stringWithFormat:@"progress uploading %@/%@", prt, [numberOfChunks stringValue]];
         NSMutableURLRequest *request = [[AFHTTPRequestSerializer serializer] multipartFormRequestWithMethod:@"POST" URLString:uploadUrl parameters:nil
             constructingBodyWithBlock:^(id<AFMultipartFormData> formData) {
-                [formData appendPartWithFileData:fileData name:@"data" fileName:fileName mimeType:@"video/*"];
-//                [formData appendPartWithFileD:[NSURL fileURLWithPath:filePath] name:@"data" fileName:fileName mimeType:@"video/*" error:nil];
+//                [formData appendPartWithFileData:fileData name:@"data" fileName:fileName mimeType:@"video/*"];
+                [formData appendPartWithFileURL:[NSURL fileURLWithPath:filePath] name:@"data" fileName:fileName mimeType:@"video/*" error:nil];
                 [formData appendPartWithFormData:[fileName dataUsingEncoding:NSUTF8StringEncoding] name:@"filename"];
                 [formData appendPartWithFormData:[hash dataUsingEncoding:NSUTF8StringEncoding] name:@"hash"];
                 [formData appendPartWithFormData:[prt dataUsingEncoding:NSUTF8StringEncoding] name:@"prt"];
             }
             error:nil
         ];
-        AFURLSessionManager *manager = [[AFURLSessionManager alloc] initWithSessionConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration]];
         NSURLSessionUploadTask *uploadTask = [manager uploadTaskWithStreamedRequest:request
             progress:^(NSProgress * _Nonnull uploadProgress) {
-                NSLog(@"Progress: %i", (int)(uploadProgress.fractionCompleted * 100));
+//                int progress = initialProgress + (int)(uploadProgress.fractionCompleted * 100 / [numberOfChunks intValue]);
+//                [self onStateChange:workId state:StateUploading response:eventEmitterResponse progress:[NSNumber numberWithInt:progress]];
             }
             completionHandler:^(NSURLResponse * _Nonnull response, id  _Nullable responseObject, NSError * _Nullable error) {
                 if (error) {
@@ -258,6 +318,22 @@ RCT_EXPORT_METHOD(startBackgroundUploadVideo:(NSNumber * _Nonnull)workId
     return [NSError errorWithDomain:@"RN Background upload video" code:100 userInfo:@{
         NSLocalizedDescriptionKey:localizedDescription
     }];
+}
+
+-(NSString *) convertJsonStringFromNSDictionary: (NSDictionary *)dictionary {
+    NSError *error;
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:dictionary options:NSJSONWritingPrettyPrinted error:&error];
+    if (!jsonData) {
+        NSLog(@"Got an error: %@", error);
+        return @"";
+    }
+    return [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+}
+
+-(void) cleanUpCache: (NSString *)filePath {
+    NSError *error;
+    [[NSFileManager defaultManager] removeItemAtPath:filePath error:&error];
+    NSLog(@"Check clear cache: %d", [[NSFileManager defaultManager] fileExistsAtPath:filePath]);
 }
 
 @end

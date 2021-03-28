@@ -38,9 +38,9 @@ export default function App() {
       // 'https://localhost/metaDataUrl',
       'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/partUpload',
       'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/metadata',
-      'file:///Users/ducminh/Library/Developer/CoreSimulator/Devices/36A29D80-D963-4014-B469-3BE5DC60FDE0/data/Media/DCIM/100APPLE/IMG_0007.MP4',
+      'file:///Users/ducminh/Library/Developer/CoreSimulator/Devices/36A29D80-D963-4014-B469-3BE5DC60FDE0/data/Media/DCIM/100APPLE/1.mp4',
       1024 * 1024 * 3,
-      true,
+      false,
       null
     ).then((workId: number) => {
       console.log('workId', workId);
