@@ -98,7 +98,7 @@ class UploadWorker(
       // upload progress
       uploadProgressListener = UploadProgressListener { bytesUploaded, totalBytes ->
         val percentage = (bytesUploaded * 100 / totalBytes).toDouble()
-        val progress = (percentage / numberOfChunks + currentProgress).roundToInt()
+        val progress = (percentage / numberOfChunks + initialProgress).roundToInt()
 //      Log.d("UPLOAD", "progress: $progress")
         if (progress <= 100 && progress % 5 == 0 && progress != currentProgress) {
           currentProgress = progress

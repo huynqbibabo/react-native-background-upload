@@ -53,8 +53,11 @@ class RNBackgroundUpload {
     return await BackgroundUploadModule.getCurrentState(workId);
   };
 
-  onStateChange = (fn: (e: StateChangeResponse) => void): EmitterSubscription =>
-    BackgroundUploadEmitter.addListener(EVENT.onStateChange, fn);
+  onStateChange = (
+    fn: (e: StateChangeResponse) => void
+  ): EmitterSubscription => {
+    return BackgroundUploadEmitter.addListener(EVENT.onStateChange, fn);
+  };
 }
 
 const BackgroundUpload = new RNBackgroundUpload();
