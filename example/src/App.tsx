@@ -13,18 +13,6 @@ export default function App() {
     BackgroundUpload.onStateChange((response) => {
       console.log('onStateChange: ', response);
     });
-    // BackgroundUpload.onRequestMetadata((response) => {
-    //   console.log('onRequestMetadata: ', response);
-    // });
-    // BackgroundUpload.onUploading((response) => {
-    //   console.log('onUploading: ', response);
-    // });
-    // BackgroundUpload.onTranscoding((response) => {
-    //   console.log('onTranscoding: ', response);
-    // });
-    BackgroundUpload.onCancelled((response) => {
-      console.log('onCancelled: ', response);
-    });
   }, []);
 
   const onPressStart = () => {
@@ -42,13 +30,11 @@ export default function App() {
       } else if (response.uri) {
         BackgroundUpload.startBackgroundUploadVideo(
           uploadWorkId.current,
-          // 'https://localhost/uploadUrl',
-          // 'https://localhost/metaDataUrl',
-          'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/partUpload',
-          'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/metadata',
+          'https://localhost/uploadUrl',
+          'https://localhost/metaDataUrl',
           response.uri,
-          1024 * 1024 * 2.5,
-          true,
+          1024 * 1024 * 3,
+          false,
           null
         ).then((workId: number) => {
           console.log('workId', workId);

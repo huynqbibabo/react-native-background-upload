@@ -16,8 +16,8 @@ import com.reactnativebackgroundupload.videoCompressor.VideoQuality
 
 internal interface CompressCallback {
   fun success(outputPath: String)
-  fun failure()
-  fun cancel()
+  fun failure(failureMessage: String, currentProgress: Int)
+  fun cancel(currentProgress: Int)
 }
 
 class CompressWorker(
@@ -29,7 +29,6 @@ class CompressWorker(
 
   override fun startWork(): ListenableFuture<Result> {
     return CallbackToFutureAdapter.getFuture { completer: CallbackToFutureAdapter.Completer<Result> ->
-      EventEmitter().onStateChange(workId, EventEmitter.STATE.TRANSCODE)
       val chunkSize = inputData.getInt(ModelTranscodeInput.KEY_CHUNK_SIZE, ModelTranscodeInput.DEFAULT_CHUNK_SIZE)
       val filePath = inputData.getString(ModelTranscodeInput.KEY_FILE_PATH)
 
@@ -39,16 +38,16 @@ class CompressWorker(
             ModelTranscodeInput().createInputDataForTranscode(workId, outputPath, chunkSize)
           ))
         }
-        override fun failure() {
-          EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED)
+        override fun failure(failureMessage: String, currentProgress: Int) {
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.FAILED, failureMessage, currentProgress)
           mNotificationHelpers.startNotify(
             workId,
             mNotificationHelpers.getFailureNotificationBuilder().build()
           )
           completer.set(Result.failure())
         }
-        override fun cancel() {
-          EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED)
+        override fun cancel(currentProgress: Int) {
+          EventEmitter().onStateChange(workId, EventEmitter.STATE.CANCELLED, "cancelled at transcode state", currentProgress)
           mNotificationHelpers.cancelNotification(workId)
           mNotificationHelpers.startNotify(
             workId,
@@ -67,8 +66,9 @@ class CompressWorker(
   }
 
   private fun compressVideo(inputPath: String?, notificationId: Int, callback: CompressCallback) {
+    var currentProgress = 0
     if (inputPath == null) {
-      callback.failure()
+      callback.failure("input file path invalid at transcode state", currentProgress)
     } else {
       val outputPath = "${applicationContext.getExternalFilesDir(null)}/${System.currentTimeMillis()}.mp4"
       VideoCompressor.start(
@@ -78,9 +78,10 @@ class CompressWorker(
           override fun onProgress(percent: Float) {
             // Update notification with progress value
             val progress = percent.toInt()
-            if (progress <= 100 && progress % 5 == 0) {
+            if (progress <= 100 && progress % 5 == 0 && progress != currentProgress) {
 //              Log.d("COMPRESSION", "Compression progress: ${percent.toInt()}")
-              EventEmitter().onTranscoding(workId, progress, "onProgress")
+              currentProgress = progress
+              EventEmitter().onStateChange(workId, EventEmitter.STATE.TRANSCODE, "progress", progress)
               mNotificationHelpers.startNotify(
                 notificationId,
                 mNotificationHelpers.getProgressNotificationBuilder(progress).setContentTitle("Đang nén tập tin media").build()
@@ -89,15 +90,15 @@ class CompressWorker(
           }
           override fun onStart() {
             // Compression start
-            EventEmitter().onTranscoding(workId, 0, "onStart")
+            EventEmitter().onStateChange(workId, EventEmitter.STATE.TRANSCODE, "start", 0)
             Log.d("COMPRESSION", "Compression start")
           }
           override fun onSuccess() {
             // On Compression success
             if (isStopped) {
-              callback.cancel()
+              callback.cancel(currentProgress)
             } else {
-              EventEmitter().onTranscoding(workId, 100, "onSuccess")
+              EventEmitter().onStateChange(workId, EventEmitter.STATE.TRANSCODE, "success", 100)
               Log.d("COMPRESSION", "Compression success")
               callback.success(outputPath)
             }
@@ -105,22 +106,19 @@ class CompressWorker(
           override fun onFailure(failureMessage: String) {
             // On Failure
             if (isStopped) {
-              callback.cancel()
+              callback.cancel(currentProgress)
             } else if (failureMessage == Compressor.INVALID_BITRATE) {
-              EventEmitter().onTranscoding(workId, 100, "onSuccess")
               Log.wtf("COMPRESSION", failureMessage)
               callback.success(inputPath)
             } else {
-              EventEmitter().onTranscoding(workId, 0, "onFailure")
               Log.wtf("COMPRESSION", failureMessage)
-              callback.failure()
+              callback.failure(failureMessage, currentProgress)
             }
           }
           override fun onCancelled() {
             // On Cancelled
             Log.d("COMPRESSION", "Compression cancelled")
-            EventEmitter().onTranscoding(workId, 0, "onCancelled")
-            callback.cancel()
+            callback.cancel(currentProgress)
           }
         }, VideoQuality.VERY_HIGH, isMinBitRateEnabled = true, keepOriginalResolution = false)
     }

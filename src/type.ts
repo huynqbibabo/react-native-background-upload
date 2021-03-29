@@ -1,12 +1,4 @@
-export type Event =
-  | 'onStateChange'
-  | 'onTranscoding'
-  | 'onRequestMetadata'
-  | 'onUploading'
-  | 'onChainTask'
-  | 'onSuccess'
-  | 'onFailure'
-  | 'onCancelled';
+export type Event = 'onStateChange';
 
 export type State =
   | 'idle'
@@ -19,35 +11,14 @@ export type State =
   | 'failed'
   | 'cancelled';
 
-export type StateChangeResponse = {
-  workId: number;
+export type CurrentStateInfo = {
   state: State;
+  response: string;
 };
 
-export type TranscodingProcess = Omit<StateChangeResponse, 'state'> & {
+export type StateChangeResponse = CurrentStateInfo & {
+  workId: number;
   progress: number;
-  status: string;
-};
-
-export type RequestMetaDataProcess = Omit<StateChangeResponse, 'state'> & {
-  response: string;
-  status: string;
-};
-
-export type UploadProcess = TranscodingProcess & {
-  response: string;
-};
-
-export type ChainTaskProcess = RequestMetaDataProcess;
-
-export type SuccessStateResponse = Omit<StateChangeResponse, 'state'>;
-
-export type FailureStateResponse = Omit<StateChangeResponse, 'state'> & {
-  error: string;
-};
-
-export type CancelledStateResponse = Omit<StateChangeResponse, 'state'> & {
-  previousState: State;
 };
 
 export type NetworkTask = {

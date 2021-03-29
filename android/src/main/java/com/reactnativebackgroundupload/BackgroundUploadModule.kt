@@ -50,7 +50,7 @@ class BackgroundUploadModule(private val reactContext: ReactApplicationContext) 
       NotificationHelpers(reactContext).createNotificationChannel()
 
       val workTag = workId.toString() // get unique work tag
-      EventEmitter().onStateChange(workId, EventEmitter.STATE.IDLE)
+      EventEmitter().onStateChange(workId, EventEmitter.STATE.IDLE, "setup background work queue", 0)
 
       // get file:// path
       val realFilePath = RealPathUtil.getRealPath(reactContext, Uri.parse(filePath))

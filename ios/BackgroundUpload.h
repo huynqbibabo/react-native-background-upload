@@ -1,5 +1,17 @@
 #import <React/RCTBridgeModule.h>
+#import <React/RCTEventEmitter.h>
 
-@interface BackgroundUpload : NSObject <RCTBridgeModule>
+#define StateIdle @"idle"
+#define StateTranscoding @"transcoding"
+#define StateSplitting @"splitting"
+#define StateRequestMetadata @"requestMetadata"
+#define StateUploading @"uploading"
+#define StateSuccess @"success"
+#define StateFailed @"failed"
+#define StateCancelled @"cancelled"
+
+@interface BackgroundUpload : RCTEventEmitter <RCTBridgeModule>
+
+@property (nonatomic, strong) NSDictionary* stateMap;
 
 @end
