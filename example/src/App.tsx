@@ -1,11 +1,10 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import BackgroundUpload from 'react-native-background-upload';
-// import {
-//   ImageLibraryOptions,
-//   launchImageLibrary,
-// } from 'react-native-image-picker';
-// import ImagePicker from 'react-native-image-crop-picker';
+import {
+  ImageLibraryOptions,
+  launchImageLibrary,
+} from 'react-native-image-picker';
 
 export default function App() {
   const uploadWorkId = React.useRef(0);
@@ -18,32 +17,29 @@ export default function App() {
 
   const onPressStart = () => {
     uploadWorkId.current = Math.floor(Date.now() / 1000);
-    // const options: ImageLibraryOptions = {
-    //   videoQuality: 'high',
-    //   mediaType: 'video',
-    // };
-    // launchImageLibrary(options, (response) => {
-    //   console.log('Response = ', response);
-    //   if (response.didCancel) {
-    //     console.log('User cancelled photo picker');
-    //   } else if (response.errorCode) {
-    //     console.log('ImagePicker Error: ', response.errorCode);
-    //   } else if (response.uri) {
-    //
-    //   }
-    // });
-    BackgroundUpload.startBackgroundUploadVideo(
-      uploadWorkId.current,
-      // 'https://localhost/uploadUrl',
-      // 'https://localhost/metaDataUrl',
-      'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/partUpload',
-      'https://cdn.bibabo.vn/api/light/v1/video/chunkedUpload/metadata',
-      'file:///Users/ducminh/Library/Developer/CoreSimulator/Devices/36A29D80-D963-4014-B469-3BE5DC60FDE0/data/Media/DCIM/100APPLE/1.mp4',
-      1024 * 1024 * 3,
-      false,
-      null
-    ).then((workId: number) => {
-      console.log('workId', workId);
+    const options: ImageLibraryOptions = {
+      videoQuality: 'high',
+      mediaType: 'video',
+    };
+    launchImageLibrary(options, (response) => {
+      console.log('Response = ', response);
+      if (response.didCancel) {
+        console.log('User cancelled photo picker');
+      } else if (response.errorCode) {
+        console.log('ImagePicker Error: ', response.errorCode);
+      } else if (response.uri) {
+        BackgroundUpload.startBackgroundUploadVideo(
+          uploadWorkId.current,
+          'https://localhost/uploadUrl',
+          'https://localhost/metaDataUrl',
+          response.uri,
+          1024 * 1024 * 3,
+          false,
+          null
+        ).then((workId: number) => {
+          console.log('workId', workId);
+        });
+      }
     });
   };
 
